@@ -17,8 +17,8 @@ The app does not auto-apply. “Apply” always opens the original job page. Rul
 1. Install Node.js 22+ and run `npm install`.
 2. Start a local Postgres with `docker compose up -d` or create a Neon project.
 3. Copy `.env.example` to `.env.local` and fill in the database and Google OAuth values.
-4. Set the Google OAuth redirect URI to `${APP_URL}/api/auth/callback/google` and set `ALLOWED_EMAIL` to your Google account.
-5. Run `npm run db:migrate` and `npm run db:seed`.
+4. Run `npm run db:migrate` to create the Auth.js and application tables, then run `npm run db:seed`.
+5. Set the Google OAuth redirect URI to `${APP_URL}/api/auth/callback/google` and set `ALLOWED_EMAIL` to your Google account.
 6. Run `npm run dev` and open `http://localhost:3000`.
 
 The local Docker database is `postgresql://postgres:jobradar@localhost:5432/jobradar`. Without database credentials, the UI uses sample jobs in read-only demo mode. Mutating actions require a configured database and authenticated user.
