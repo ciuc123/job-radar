@@ -10,7 +10,7 @@ A private, personal dashboard that finds remote developer roles, scores them aga
 - Google OAuth via Auth.js
 - Public-repository GitHub Actions for scheduled fetching
 
-The app does not auto-apply. “Apply” always opens the original job page. Rules-based scoring works without AI. AI and email settings are reserved for the next implementation pass and are not active yet. Free plans have changing quotas; do not enable paid overages if maintaining a $0 ceiling matters.
+The app does not auto-apply. “Apply” always opens the original job page. Rules-based scoring works without AI. Optional AI analysis uses an OpenAI-compatible endpoint and is off by default; daily digest uses Resend and must also be enabled in settings and configured with GitHub Actions secrets. Free plans have changing quotas; do not enable paid overages if maintaining a $0 ceiling matters.
 
 ## Local setup
 
@@ -33,6 +33,8 @@ Google sign-in requires OAuth client credentials. Restrict the OAuth consent aud
 
 Sources are enabled only when they expose an official public API/feed and their terms permit this personal use. Himalayas is supported through its documented public API and We Work Remotely through its public RSS feed. Laravel News Jobs and other sources without a verified permitted feed are recorded as unavailable; Remotive is disabled because its published terms restrict automated extraction and syndication absent permission. No source uses CAPTCHA, login automation, or anti-bot evasion.
 
-The `/network` page is a separate private tracker for platform accounts, talent networks, waitlists, applications, and follow-up reminders. Its data is stored per signed-in user in Neon and should never be added to a public repository fixture.
+The `/network` page is a separate private tracker for platform accounts, talent networks, waitlists, applications, and follow-up reminders. Its data is stored per signed-in user in Neon and should never be added to a public repository fixture. `/sources` shows source availability and fetch health.
+
+For optional AI, configure `AI_ANALYSIS_ENABLED=true`, `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` as GitHub Actions secrets. AI runs only on high scoring jobs, stores one result per job, and uses only the candidate profile and listing text in its prompt. For daily digest, configure `EMAIL_NOTIFICATIONS_ENABLED=true`, `RESEND_API_KEY`, and `EMAIL_FROM` as GitHub Actions secrets, then enable the digest in Preferences. No email is sent by default.
 
 See [PLAN.md](./PLAN.md) for feature status and acceptance criteria.

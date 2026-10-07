@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
 import { getScoringProfile, persistJobs } from "@/lib/repository/jobs";
 import type { JobSource } from "@/lib/sources/job-source";
+import { analyzeRelevantJobs } from "@/lib/ai/analyzer";
 
 export type SourceRun = { source: string; ok: boolean; discovered: number; added: number; duplicates: number; durationMs: number; error?: string };
 
@@ -39,5 +40,7 @@ export async function runFetchPipeline(sources: JobSource[]) {
   if (db) for (const run of runs.filter((item) => !item.ok)) {
     await db.update(sourceHealth).set({ status: "error", lastCompletedAt: new Date(), durationMs: run.durationMs, lastError: run.error }).where(eq(sourceHealth.source, run.source));
   }
+  const aiAnalyzed = await analyzeRelevantJobs(profile);
+  if (aiAnalyzed) console.info(JSON.stringify({ event: "ai.analysis_completed", analyzed: aiAnalyzed }));
   return runs;
 }

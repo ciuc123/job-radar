@@ -17,7 +17,7 @@
 ## Phase 2 — Coverage and operations
 
 - [x] Add verified We Work Remotely public RSS source; mark unverified/restricted endpoints unavailable
-- [ ] Optional AI analysis with stored results and no required paid API
+- [x] Optional AI analysis with stored results and no required paid API (OpenAI-compatible endpoint; disabled by default)
 - [ ] Daily email digest and configurable notifications
 - [x] Scheduled source fetching through GitHub Actions, with independent source failures
 - [x] Source health and fetch execution logs
