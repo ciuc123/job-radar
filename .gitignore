@@ -6,5 +6,5 @@ coverage
 .env
 .env.*
 !.env.example
+private/
 *.tsbuildinfo
-drizzle/meta

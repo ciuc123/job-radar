@@ -26,13 +26,19 @@ export type NormalizedJob = {
 };
 
 export type ScoringProfile = {
+  headline: string;
+  experienceYears: number;
+  experienceSummary: string;
+  preferredTitles: string[];
   strongSkills: string[];
   secondarySkills: string[];
   preferredLocations: string[];
   excludedLocations: string[];
   preferredEmploymentTypes: string[];
+  negativeSignals: string[];
   salaryMinimum: number | null;
   thresholds: { apply: number; review: number; maybe: number };
+  scoreWeights: Record<string, number>;
 };
 
 export type ScoredJob = NormalizedJob & {

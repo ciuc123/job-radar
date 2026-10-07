@@ -3,29 +3,30 @@
 ## Phase 1 — Core MVP
 
 - [x] Next.js app scaffold, Vercel configuration, environment template, and setup guide
-- [ ] Neon Postgres schema and persistence for profile, jobs, source links, and settings
-- [ ] Google sign-in and private dashboard access
-- [ ] Editable candidate profile and deterministic scoring configuration
-- [ ] Source adapter contract with Himalayas and Laravel News; unavailable-source health states
-- [ ] Normalization, canonical URL/title/content deduplication, and source URL aggregation
-- [ ] Deterministic 0–100 scoring and recommendation thresholds
-- [ ] Dashboard search/filters, job detail, external Apply, Save, Reject, notes, and seed data
-- [ ] Phase 1 test suite (normalization, dedupe, scoring, negatives, location, salary, source failures, thresholds)
+- [x] Neon Postgres schema and persistence for profile, jobs, source links, and settings
+- [x] Google sign-in and private dashboard access
+- [x] Editable candidate profile and deterministic scoring configuration
+- [x] Source adapter contract with Himalayas and Laravel News; unavailable-source health states
+- [x] Normalization, canonical URL/title/content deduplication, and source URL aggregation
+- [x] Deterministic 0–100 scoring and recommendation thresholds
+- [x] Dashboard search/filters, job detail, external Apply, Save, Reject, notes, and seed data
+- [x] Phase 1 test suite (normalization, dedupe, scoring, negatives, location, salary, source failures, thresholds)
 
 **Phase 1 acceptance:** the application runs locally and deploys to Vercel with Neon; 20+ realistic fixtures rank strong matches above poor matches; a user can inspect a fetched or seeded job and open its original URL. Run and pass the full Phase 1 suite before beginning Phase 2.
 
 ## Phase 2 — Coverage and operations
 
-- [ ] Add remaining reliable/allowed job sources behind the same adapter contract
+- [x] Add verified We Work Remotely public RSS source; mark unverified/restricted endpoints unavailable
 - [ ] Optional AI analysis with stored results and no required paid API
 - [ ] Daily email digest and configurable notifications
-- [ ] Scheduled source fetching through GitHub Actions, with independent source failures
-- [ ] Source health and fetch execution logs
+- [x] Scheduled source fetching through GitHub Actions, with independent source failures
+- [x] Source health and fetch execution logs
 
 **Phase 2 acceptance:** scheduled fetches normalize, deduplicate, score, optionally analyze, and notify; source errors are isolated and visible.
 
 ## Phase 3 — Application tracking
 
+- [x] Private recruiter/platform pipeline, statuses, cadence, next action, and notes
 - [ ] Application pipeline and status history
 - [ ] Interview dates, notes, CV/cover-letter references, salary expectations, contacts, next actions
 - [ ] Lightweight personal application analytics
