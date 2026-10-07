@@ -2,7 +2,7 @@
 
 ## Phase 1 — Core MVP
 
-- [ ] Next.js app scaffold, Vercel configuration, environment template, and setup guide
+- [x] Next.js app scaffold, Vercel configuration, environment template, and setup guide
 - [ ] Neon Postgres schema and persistence for profile, jobs, source links, and settings
 - [ ] Google sign-in and private dashboard access
 - [ ] Editable candidate profile and deterministic scoring configuration
