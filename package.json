@@ -9,10 +9,10 @@
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
-    "db:seed": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/seed.ts",
-    "jobs:fetch": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/fetch-jobs.ts",
-    "notifications:send": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx scripts/send-digests.ts"
+    "db:migrate": "node --import tsx scripts/migrate.ts",
+    "db:seed": "node --import tsx scripts/seed.ts",
+    "jobs:fetch": "node --import tsx scripts/fetch-jobs.ts",
+    "notifications:send": "node --import tsx scripts/send-digests.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
