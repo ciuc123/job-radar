@@ -13,16 +13,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user }) {
       const allowedEmail = process.env.ALLOWED_EMAIL?.trim().toLowerCase();
-      const allowed = Boolean(allowedEmail && user.email?.toLowerCase() === allowedEmail);
-      if (allowed && db && user.id) {
-        await db.insert(candidateProfiles).values({ userId: user.id, ...defaultProfile, scoreWeights: defaultProfile.scoreWeights }).onConflictDoNothing();
-        await db.insert(notificationSettings).values({ userId: user.id }).onConflictDoNothing();
-      }
-      return allowed;
+      return Boolean(allowedEmail && user.email?.toLowerCase() === allowedEmail);
     },
     async session({ session, token }) {
       if (session.user && token.sub) session.user.id = token.sub;
       return session;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      if (!db || !user.id) return;
+      await db.insert(candidateProfiles).values({ userId: user.id, ...defaultProfile, scoreWeights: defaultProfile.scoreWeights }).onConflictDoNothing();
+      await db.insert(notificationSettings).values({ userId: user.id }).onConflictDoNothing();
     },
   },
 });
