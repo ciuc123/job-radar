@@ -21,3 +21,14 @@ jobs:
       - run: npm run jobs:fetch
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AI_ANALYSIS_ENABLED: ${{ secrets.AI_ANALYSIS_ENABLED }}
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+      - if: ${{ always() && !cancelled() }}
+        run: npm run notifications:send
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          EMAIL_NOTIFICATIONS_ENABLED: ${{ secrets.EMAIL_NOTIFICATIONS_ENABLED }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}

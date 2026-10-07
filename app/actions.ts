@@ -2,7 +2,8 @@
 
 import { auth } from "@/auth";
 import { db } from "@/db";
-import { networkPipelines } from "@/db/schema";
+import { networkPipelines, notificationSettings } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getScoringProfile, rescoreJobs, saveProfile, updateJobApplication } from "@/lib/repository/jobs";
 import type { JobStatus } from "@/lib/types";
 import { redirect } from "next/navigation";
@@ -64,4 +65,14 @@ export async function saveNetworkPipelineAction(formData: FormData) {
   await db.insert(networkPipelines).values({ userId, name, status, cadence: String(formData.get("cadence") ?? "").trim() || null, nextAction: String(formData.get("nextAction") ?? "").trim() || null, notes: String(formData.get("notes") ?? "").trim() })
     .onConflictDoUpdate({ target: [networkPipelines.userId, networkPipelines.name], set: { status, cadence: String(formData.get("cadence") ?? "").trim() || null, nextAction: String(formData.get("nextAction") ?? "").trim() || null, notes: String(formData.get("notes") ?? "").trim(), updatedAt: new Date() } });
   redirect("/network");
+}
+
+export async function saveNotificationSettingsAction(formData: FormData) {
+  const userId = await requireUserId();
+  if (!db) throw new Error("Database is not configured");
+  const threshold = Number(formData.get("immediateThreshold"));
+  if (!Number.isInteger(threshold) || threshold < 50 || threshold > 100) throw new Error("Notification threshold must be from 50 to 100");
+  const values = { dailyDigestEnabled: formData.get("dailyDigestEnabled") === "on", immediateEnabled: false, immediateThreshold: threshold };
+  await db.update(notificationSettings).set(values).where(eq(notificationSettings.userId, userId));
+  redirect("/settings?notifications=updated");
 }

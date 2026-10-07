@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "jobs:fetch": "tsx scripts/fetch-jobs.ts"
+    "jobs:fetch": "tsx scripts/fetch-jobs.ts",
+    "notifications:send": "tsx scripts/send-digests.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.10.0",
