@@ -72,7 +72,7 @@ export async function saveNotificationSettingsAction(formData: FormData) {
   if (!db) throw new Error("Database is not configured");
   const threshold = Number(formData.get("immediateThreshold"));
   if (!Number.isInteger(threshold) || threshold < 50 || threshold > 100) throw new Error("Notification threshold must be from 50 to 100");
-  const values = { dailyDigestEnabled: formData.get("dailyDigestEnabled") === "on", immediateEnabled: false, immediateThreshold: threshold };
+  const values = { dailyDigestEnabled: formData.get("dailyDigestEnabled") === "on", immediateEnabled: formData.get("immediateEnabled") === "on", immediateThreshold: threshold };
   await db.update(notificationSettings).set(values).where(eq(notificationSettings.userId, userId));
   redirect("/settings?notifications=updated");
 }

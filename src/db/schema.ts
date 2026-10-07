@@ -82,6 +82,7 @@ export const jobs = pgTable("jobs", {
   score: integer("score").notNull().default(0),
   scoreBreakdown: jsonb("score_breakdown").$type<Record<string, number>>().notNull().default({}),
   recommendation: recommendationEnum("recommendation").notNull().default("REJECT"),
+  immediateSentAt: timestamp("immediate_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [

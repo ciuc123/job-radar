@@ -35,6 +35,6 @@ Sources are enabled only when they expose an official public API/feed and their 
 
 The `/network` page is a separate private tracker for platform accounts, talent networks, waitlists, applications, and follow-up reminders. Its data is stored per signed-in user in Neon and should never be added to a public repository fixture. `/sources` shows source availability and fetch health.
 
-For optional AI, configure `AI_ANALYSIS_ENABLED=true`, `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` as GitHub Actions secrets. AI runs only on high scoring jobs, stores one result per job, and uses only the candidate profile and listing text in its prompt. For daily digest, configure `EMAIL_NOTIFICATIONS_ENABLED=true`, `RESEND_API_KEY`, and `EMAIL_FROM` as GitHub Actions secrets, then enable the digest in Preferences. No email is sent by default.
+For optional AI, configure `AI_ANALYSIS_ENABLED=true`, `AI_BASE_URL`, `AI_API_KEY`, and `AI_MODEL` as GitHub Actions secrets. AI runs only on high scoring jobs, stores one result per job, and uses only the candidate profile and listing text in its prompt. For email, configure `EMAIL_NOTIFICATIONS_ENABLED=true`, `RESEND_API_KEY`, and `EMAIL_FROM` as GitHub Actions secrets, then enable the daily digest and/or score threshold alerts in Preferences. Immediate alerts are evaluated each time the scheduled fetch workflow runs. No email is sent by default.
 
 See [PLAN.md](./PLAN.md) for feature status and acceptance criteria.
