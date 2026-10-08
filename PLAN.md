@@ -16,10 +16,11 @@
 
 ## Phase 2 — Coverage and operations
 
-- [x] Add verified We Work Remotely public RSS source; mark unverified/restricted endpoints unavailable
+- [x] Add verified We Work Remotely RSS and Jobgether documented public API; show other sources only when a permitted feed is verified
 - [x] Optional AI analysis with stored results and no required paid API (OpenAI-compatible endpoint; disabled by default)
 - [x] Daily email digest and configurable score threshold notifications
 - [x] Scheduled source fetching through GitHub Actions, with independent source failures
+- [x] Run scheduled source fetch at 00:00 and 12:00 UTC
 - [x] Source health and fetch execution logs
 
 **Phase 2 acceptance:** scheduled fetches normalize, deduplicate, score, optionally analyze, and notify; source errors are isolated and visible.
@@ -27,6 +28,7 @@
 ## Phase 3 — Application tracking
 
 - [x] Private recruiter/platform pipeline, statuses, cadence, next action, and notes
+- [x] Private board follow-up import prepared locally; personal notes excluded from git
 - [ ] Application pipeline and status history
 - [ ] Interview dates, notes, CV/cover-letter references, salary expectations, contacts, next actions
 - [ ] Lightweight personal application analytics

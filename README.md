@@ -23,15 +23,17 @@ The app does not auto-apply. “Apply” always opens the original job page. Rul
 
 The local Docker database is `postgresql://postgres:jobradar@localhost:5432/jobradar`. Without database credentials, the UI uses sample jobs in read-only demo mode. Mutating actions require a configured database and authenticated user.
 
+After applying migrations and signing in once with the account in `ALLOWED_EMAIL`, run `npm run network:import` to load `private/network-pipelines.json` into that user's private tracker. The JSON file is git-ignored and must not be committed.
+
 ## Deploy
 
-Create a Neon Postgres project and a Vercel project connected to the public GitHub repository. Set the variables from `.env.example` in Vercel. Run migrations using `npm run db:migrate` with the production `DATABASE_URL` before enabling the app. Add `DATABASE_URL` as a GitHub Actions secret. The scheduled workflow runs once each morning UTC; it can also be triggered manually from Actions.
+Create a Neon Postgres project and a Vercel project connected to the public GitHub repository. Set the variables from `.env.example` in Vercel. Run migrations using `npm run db:migrate` with the production `DATABASE_URL` before enabling the app. Add `DATABASE_URL` as a GitHub Actions secret. The scheduled workflow runs at 00:00 and 12:00 UTC; GitHub cron uses UTC and does not adjust for Romania's daylight-saving time. It can also be triggered manually from Actions.
 
 Google sign-in requires OAuth client credentials. Restrict the OAuth consent audience and authorized users to your own account. Never commit `.env.local`, provider secrets, or Neon URLs.
 
 ## Source availability
 
-Sources are enabled only when they expose an official public API/feed and their terms permit this personal use. Himalayas is supported through its documented public API and We Work Remotely through its public RSS feed. Laravel News Jobs and other sources without a verified permitted feed are recorded as unavailable; Remotive is disabled because its published terms restrict automated extraction and syndication absent permission. No source uses CAPTCHA, login automation, or anti-bot evasion.
+Sources are enabled only when they expose an official public API/feed and their terms permit this personal use. Himalayas is supported through its documented public API, We Work Remotely through its public RSS feed, and Jobgether through its documented no-key job search API. Laravel News Jobs and other sources without a verified permitted feed are recorded as unavailable; Remotive is disabled because its published terms restrict automated extraction and syndication absent permission. No source uses CAPTCHA, login automation, or anti-bot evasion.
 
 The `/network` page is a separate private tracker for platform accounts, talent networks, waitlists, applications, and follow-up reminders. Its data is stored per signed-in user in Neon and should never be added to a public repository fixture. `/sources` shows source availability and fetch health.
 
