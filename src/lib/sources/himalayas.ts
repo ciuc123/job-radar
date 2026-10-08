@@ -14,7 +14,10 @@ const toIso = (value?: number | string) => value ? new Date(typeof value === "nu
 
 export function mapHimalayasJob(item: HimalayasJob): NormalizedJob | null {
   if (!item.title || !item.applicationLink) return null;
-  const countries = (item.locationRestrictions ?? []).map((country) => typeof country === "string" ? country : country.name ?? "").filter(Boolean);
+  const countries = (item.locationRestrictions ?? []).flatMap((country) => {
+    if (typeof country === "string") return [country];
+    return country && typeof country.name === "string" ? [country.name] : [];
+  });
   const description = item.description ?? item.excerpt ?? "";
   return normalizeJob({
     source: "himalayas", sourceJobId: item.guid, url: item.applicationLink, title: item.title,

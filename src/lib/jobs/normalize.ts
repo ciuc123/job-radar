@@ -65,6 +65,9 @@ export function descriptionHash(description: string): string {
 
 export function normalizeJob(job: NormalizedJob): NormalizedJob {
   const description = cleanHtml(job.description);
+  const cleanStrings = (values: unknown): string[] => Array.isArray(values)
+    ? [...new Set(values.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean))]
+    : [];
   return {
     ...job,
     url: normalizeUrl(job.url),
@@ -72,8 +75,8 @@ export function normalizeJob(job: NormalizedJob): NormalizedJob {
     company: job.company.trim().replace(/\s+/g, " "),
     description,
     location: job.location.trim(),
-    countries: [...new Set(job.countries.map((item) => item.trim()).filter(Boolean))],
-    timezoneRequirements: [...new Set(job.timezoneRequirements.map((item) => item.trim()).filter(Boolean))],
-    technologies: [...new Set([...job.technologies, ...extractTechnologies(`${job.title} ${description}`)])],
+    countries: cleanStrings(job.countries),
+    timezoneRequirements: cleanStrings(job.timezoneRequirements),
+    technologies: [...new Set([...cleanStrings(job.technologies), ...extractTechnologies(`${job.title} ${description}`)])],
   };
 }

@@ -6,6 +6,7 @@ import { realisticJobs, job } from "@/lib/demo-jobs";
 import { mapHimalayasJob } from "@/lib/sources/himalayas";
 import { runSourcesIndependently } from "@/lib/sources/pipeline";
 import { mapWwrFeed } from "@/lib/sources/wwr";
+import { mapJobgetherListing } from "@/lib/sources/jobgether";
 
 test("normalizes HTML, URL tracking parameters, whitespace, and technology signals", () => {
   const normalized = normalizeJob(job({ url: "https://WWW.Example.com/role/?utm_source=board#apply", title: "  Senior  Laravel Developer ", description: "<p>PHP &amp; MySQL</p>" }));
@@ -52,6 +53,29 @@ test("maps Himalayas country restrictions, timezone, salary, and source ID", () 
   assert.equal(result?.sourceJobId, "a");
   assert.deepEqual(result?.countries, ["Romania"]);
   assert.equal(result?.salaryMax, 90);
+});
+
+test("Himalayas normalization safely ignores non-string list values from source payloads", () => {
+  const result = mapHimalayasJob({
+    title: "Senior PHP Engineer", companyName: "Acme", applicationLink: "https://himalayas.app/jobs/a",
+    locationRestrictions: [{ name: 42 } as unknown as { name?: string }, "Romania"],
+    timezoneRestrictions: ["UTC+2", 42] as unknown as string[], categories: ["Backend", { name: "PHP" }] as unknown as string[],
+  });
+  assert.deepEqual(result?.countries, ["Romania"]);
+  assert.deepEqual(result?.timezoneRequirements, ["UTC+2"]);
+  assert.ok(result?.technologies.includes("PHP"));
+});
+
+test("maps Jobgether documented public API results", () => {
+  const result = mapJobgetherListing({
+    id: "job-1", title: "Senior PHP Backend Engineer", company: "Acme", url: "https://jobgether.com/offer/php-backend",
+    location: ["Romania", "Europe"], remote: "Full Remote", contractType: "Freelance", experience: "Senior (5-10 years)",
+    salaryRange: "60000-80000 EUR", jobFunctions: ["Backend Developer"], postedAt: "2026-10-07T00:00:00Z",
+  });
+  assert.equal(result?.sourceJobId, "job-1");
+  assert.equal(result?.salaryMin, 60000);
+  assert.deepEqual(result?.countries, ["Romania", "Europe"]);
+  assert.equal(result?.contractType[0], "Freelance");
 });
 
 test("maps official We Work Remotely RSS listings and rejects malformed feeds", () => {
