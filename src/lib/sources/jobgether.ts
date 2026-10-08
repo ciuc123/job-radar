@@ -40,18 +40,21 @@ export const jobgetherSource: JobSource = {
   id: "jobgether", name: "Jobgether", enabled: true, available: true,
   async fetch() {
     const jobs: NormalizedJob[] = [];
-    for (let page = 1; page <= 10; page++) {
-      const url = new URL("https://jobgether.com/api/v1/jobs");
-      url.searchParams.set("keyword", "PHP Laravel backend developer");
-      url.searchParams.set("locations", "europe");
-      url.searchParams.set("sort", "date");
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("limit", "25");
-      const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "JobRadar/1.0 (personal job discovery)" }, signal: AbortSignal.timeout(20_000), cache: "no-store" });
-      if (!response.ok) throw new Error(`Jobgether returned HTTP ${response.status}`);
-      const body = await response.json() as JobgetherResponse;
-      jobs.push(...(body.jobs ?? []).map(mapJobgetherListing).filter((job): job is NormalizedJob => Boolean(job)));
-      if (!body.pagination?.hasMore) break;
+    for (const keyword of ["Laravel", "PHP"]) {
+      for (let page = 1; page <= 2; page++) {
+        const url = new URL("https://jobgether.com/api/v1/jobs");
+        url.searchParams.set("keyword", keyword);
+        url.searchParams.set("locations", "europe");
+        url.searchParams.set("sort", "date");
+        url.searchParams.set("page", String(page));
+        url.searchParams.set("limit", "25");
+        const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "JobRadar/1.0 (personal job discovery)" }, signal: AbortSignal.timeout(20_000), cache: "no-store" });
+        if (!response.ok) throw new Error(`Jobgether returned HTTP ${response.status}`);
+        const body = await response.json() as JobgetherResponse;
+        jobs.push(...(body.jobs ?? []).map(mapJobgetherListing).filter((job): job is NormalizedJob => Boolean(job)));
+        if (!body.pagination?.hasMore) break;
+        if (page === 2) console.info(JSON.stringify({ event: "source.pagination_cap_reached", source: this.id, keyword, maxPages: 2 }));
+      }
     }
     return { source: this.id, jobs };
   },

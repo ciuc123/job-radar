@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { cleanHtml, contentHash, normalizeJob, normalizeUrl, parseSalary } from "@/lib/jobs/normalize";
 import { deduplicateJobs } from "@/lib/deduplication/deduplicator";
 import { realisticJobs, job } from "@/lib/demo-jobs";
-import { mapHimalayasJob } from "@/lib/sources/himalayas";
+import { himalayasSource, mapHimalayasJob } from "@/lib/sources/himalayas";
 import { runSourcesIndependently } from "@/lib/sources/pipeline";
 import { mapWwrFeed } from "@/lib/sources/wwr";
-import { mapJobgetherListing } from "@/lib/sources/jobgether";
+import { jobgetherSource, mapJobgetherListing } from "@/lib/sources/jobgether";
 
 test("normalizes HTML, URL tracking parameters, whitespace, and technology signals", () => {
   const normalized = normalizeJob(job({ url: "https://WWW.Example.com/role/?utm_source=board#apply", title: "  Senior  Laravel Developer ", description: "<p>PHP &amp; MySQL</p>" }));
@@ -76,6 +76,40 @@ test("maps Jobgether documented public API results", () => {
   assert.equal(result?.salaryMin, 60000);
   assert.deepEqual(result?.countries, ["Romania", "Europe"]);
   assert.equal(result?.contractType[0], "Freelance");
+});
+
+test("paginates Himalayas until its safety cap and stops on a repeated cursor", async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedCursors: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    requestedCursors.push(url.searchParams.get("cursor") ?? "first");
+    const cursor = url.searchParams.get("cursor");
+    return Response.json({ jobs: [], nextCursor: cursor ? "repeat" : "repeat" });
+  };
+  try {
+    await himalayasSource.fetch();
+    assert.deepEqual(requestedCursors, ["first", "repeat"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Jobgether searches PHP and Laravel independently and paginates when more results exist", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    const page = Number(url.searchParams.get("page"));
+    return Response.json({ jobs: [], pagination: { hasMore: url.searchParams.get("keyword") === "Laravel" && page === 1 } });
+  };
+  try {
+    await jobgetherSource.fetch();
+    assert.deepEqual(requests.map((url) => `${url.searchParams.get("keyword")}:${url.searchParams.get("page")}`), ["Laravel:1", "Laravel:2", "PHP:1"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("maps official We Work Remotely RSS listings and rejects malformed feeds", () => {

@@ -40,7 +40,8 @@ export const himalayasSource: JobSource = {
   async fetch() {
     const jobs: NormalizedJob[] = [];
     let cursor: string | undefined;
-    for (let page = 0; page < 5; page++) {
+    const seenCursors = new Set<string>();
+    for (let page = 0; page < 10; page++) {
       const url = new URL("https://himalayas.app/jobs/api");
       url.searchParams.set("limit", "20");
       if (cursor) url.searchParams.set("cursor", cursor);
@@ -48,8 +49,14 @@ export const himalayasSource: JobSource = {
       if (!response.ok) throw new Error(`Himalayas returned HTTP ${response.status}`);
       const body = await response.json() as HimalayasPage;
       jobs.push(...(body.jobs ?? []).map(mapHimalayasJob).filter((job): job is NormalizedJob => Boolean(job)));
-      cursor = body.nextCursor;
-      if (!cursor) break;
+      const nextCursor = body.nextCursor;
+      if (!nextCursor || seenCursors.has(nextCursor)) break;
+      if (page === 9) {
+        console.info(JSON.stringify({ event: "source.pagination_cap_reached", source: this.id, maxPages: 10, discovered: jobs.length }));
+        break;
+      }
+      seenCursors.add(nextCursor);
+      cursor = nextCursor;
     }
     return { source: this.id, jobs };
   },

@@ -33,7 +33,7 @@ Google sign-in requires OAuth client credentials. Restrict the OAuth consent aud
 
 ## Source availability
 
-Sources are enabled only when they expose an official public API/feed and their terms permit this personal use. Himalayas is supported through its documented public API, We Work Remotely through its public RSS feed, and Jobgether through its documented no-key job search API. Laravel News Jobs and other sources without a verified permitted feed are recorded as unavailable; Remotive is disabled because its published terms restrict automated extraction and syndication absent permission. No source uses CAPTCHA, login automation, or anti-bot evasion.
+Sources are enabled only when they expose an official public API/feed and their terms permit this personal use. Himalayas is supported through its documented public API (up to 10 pages of 20 jobs per run), We Work Remotely through its current public RSS feed, and Jobgether through its documented no-key API (Laravel and PHP searches, up to two pages each). Laravel News Jobs and other sources without a verified permitted feed are recorded as unavailable; Remotive is disabled because its published terms restrict automated extraction and syndication absent permission. No source uses CAPTCHA, login automation, or anti-bot evasion.
 
 The `/network` page is a separate private tracker for platform accounts, talent networks, waitlists, applications, and follow-up reminders. Its data is stored per signed-in user in Neon and should never be added to a public repository fixture. `/sources` shows source availability and fetch health.
 

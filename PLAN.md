@@ -16,7 +16,7 @@
 
 ## Phase 2 — Coverage and operations
 
-- [x] Add verified We Work Remotely RSS and Jobgether documented public API; show other sources only when a permitted feed is verified
+- [x] Add verified We Work Remotely RSS and paginated Jobgether documented public API; show other sources only when a permitted feed is verified
 - [x] Optional AI analysis with stored results and no required paid API (OpenAI-compatible endpoint; disabled by default)
 - [x] Daily email digest and configurable score threshold notifications
 - [x] Scheduled source fetching through GitHub Actions, with independent source failures
