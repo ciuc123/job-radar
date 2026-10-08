@@ -1,13 +1,11 @@
-import { auth } from "./auth";
-import { NextResponse } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-export default auth((request) => {
-  if (!request.auth && request.nextUrl.pathname !== "/signin") {
-    return NextResponse.redirect(new URL("/signin", request.nextUrl));
-  }
-  return NextResponse.next();
+const isPublic = createRouteMatcher(["/signin(.*)", "/api/webhooks/clerk(.*)"]);
+
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublic(request)) await auth.protect();
 });
 
 export const config = {
-  matcher: ["/((?!api/auth|signin|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)", "/(api|trpc)(.*)"],
 };

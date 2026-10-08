@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getCurrentAppUser } from "@/lib/app-user";
 import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
 import { sourceRegistry } from "@/lib/sources/registry";
@@ -23,8 +23,8 @@ function SourceCard({ source, health }: {
 }
 
 export default async function SourcesPage() {
-  const session = await auth();
-  if (!session?.user?.id) return <main className="page-shell"><Link className="button button-primary" href="/signin">Sign in</Link></main>;
+  const user = await getCurrentAppUser();
+  if (!user?.id) return <main className="page-shell"><Link className="button button-primary" href="/signin">Sign in</Link></main>;
 
   const rows = db ? await db.select().from(sourceHealth) : [];
   const health = new Map(rows.map((row) => [row.source, row]));

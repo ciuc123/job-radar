@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
-import { auth } from "@/auth";
+import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
 import { saveNotificationSettingsAction, saveProfileAction } from "@/app/actions";
 import { defaultProfile } from "@/lib/profile";
 import { getScoringProfile, hasDatabase } from "@/lib/repository/jobs";
@@ -12,11 +12,12 @@ export const dynamic = "force-dynamic";
 const join = (items: string[]) => items.join(", ");
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ updated?: string; notifications?: string }> }) {
-  const session = await auth();
-  const profile = await getScoringProfile(session?.user?.id);
+  const user = await getCurrentAppUser();
+  const canUseEmail = await hasPaidFeature("email_alerts");
+  const profile = await getScoringProfile(user?.id);
   const editable = hasDatabase();
   const { updated, notifications } = await searchParams;
-  const notification = db && session?.user?.id ? (await db.select().from(notificationSettings).where(eq(notificationSettings.userId, session.user.id)).limit(1))[0] : undefined;
+  const notification = db && user?.id ? (await db.select().from(notificationSettings).where(eq(notificationSettings.userId, user.id)).limit(1))[0] : undefined;
   return <main className="app-shell settings-shell">
     <header className="topbar"><Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link><Link href="/" className="back-link"><ArrowLeft size={16}/> Dashboard</Link></header>
     <section className="settings-content"><p className="eyebrow">YOUR PROFILE</p><h1>Scoring preferences</h1><p className="muted">Backend roles enter your pipeline. PHP + Laravel backend roles are worth reviewing. Strong matches also need to be fully remote and meet your salary floor.</p>
@@ -46,7 +47,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </div><label>Scoring weight overrides <small>Optional JSON map. Keys include PHP, Laravel, senior, location.europe, employment.contract, juniorPenalty.</small><textarea name="scoreWeights" defaultValue={JSON.stringify(profile.scoreWeights, null, 2)}/></label></fieldset>
         {editable && <button className="button button-primary" type="submit"><Save size={15}/> Save preferences</button>}
       </form>
-      <section className="settings-form"><fieldset disabled={!editable}><legend>Notifications</legend>{notifications && <div className="success-banner">Notification preferences saved.</div>}<p className="muted">Daily email summarizes recent matches. Immediate email alerts are checked by the scheduled fetch. Configure Resend in GitHub Actions to deliver them.</p><form action={saveNotificationSettingsAction}><label><input type="checkbox" name="dailyDigestEnabled" defaultChecked={notification?.dailyDigestEnabled ?? false}/> Enable daily digest</label><label><input type="checkbox" name="immediateEnabled" defaultChecked={notification?.immediateEnabled ?? false}/> Immediate alerts for new high scoring jobs</label><label>Minimum score<input name="immediateThreshold" type="number" min="50" max="100" defaultValue={notification?.immediateThreshold ?? 92}/></label>{editable && <button className="button button-primary">Save notifications</button>}</form></fieldset></section>
+      <section className="settings-form"><fieldset disabled={!editable || !canUseEmail}><legend>Notifications</legend>{notifications && <div className="success-banner">Notification preferences saved.</div>}<p className="muted">Daily email summarizes recent matches. Immediate email alerts are checked by the scheduled fetch. Configure Resend in GitHub Actions to deliver them. {!canUseEmail && <>Email alerts are a Pro feature. <Link href="/billing">View plans.</Link></>}</p><form action={saveNotificationSettingsAction}><label><input type="checkbox" name="dailyDigestEnabled" defaultChecked={notification?.dailyDigestEnabled ?? false}/> Enable daily digest</label><label><input type="checkbox" name="immediateEnabled" defaultChecked={notification?.immediateEnabled ?? false}/> Immediate alerts for new high scoring jobs</label><label>Minimum score<input name="immediateThreshold" type="number" min="50" max="100" defaultValue={notification?.immediateThreshold ?? 92}/></label>{editable && canUseEmail && <button className="button button-primary">Save notifications</button>}</form></fieldset></section>
     </section>
   </main>;
 }

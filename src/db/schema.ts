@@ -1,4 +1,4 @@
-import { boolean, integer, jsonb, pgEnum, pgTable, real, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, jsonb, pgEnum, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 export const recommendationEnum = pgEnum("recommendation", ["APPLY", "REVIEW", "MAYBE", "REJECT"]);
 export const applicationStatusEnum = pgEnum("application_status", ["NEW", "SAVED", "REVIEW", "APPLIED", "INTERVIEW", "OFFER", "REJECTED", "WITHDRAWN"]);
@@ -9,7 +9,19 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   image: text("image"),
   emailVerified: timestamp("email_verified", { withTimezone: true }),
+  clerkUserId: text("clerk_user_id").unique(),
+  role: varchar("role", { length: 24 }).notNull().default("member"),
+  ownerPro: boolean("owner_pro").notNull().default(false),
+  subscriptionPlan: varchar("subscription_plan", { length: 80 }).notNull().default("free"),
+  subscriptionStatus: varchar("subscription_status", { length: 32 }).notNull().default("active"),
+  subscriptionSyncedAt: timestamp("subscription_synced_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const clerkWebhookEvents = pgTable("clerk_webhook_events", {
+  id: text("id").primaryKey(),
+  eventType: text("event_type").notNull(),
+  processedAt: timestamp("processed_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const accounts = pgTable("accounts", {
@@ -103,6 +115,16 @@ export const sourceListings = pgTable("source_listings", {
   uniqueIndex("source_listing_url_unique").on(table.source, table.url),
 ]);
 
+export const userJobScores = pgTable("user_job_scores", {
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  jobId: uuid("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
+  score: integer("score").notNull(),
+  scoreBreakdown: jsonb("score_breakdown").$type<Record<string, number>>().notNull().default({}),
+  recommendation: recommendationEnum("recommendation").notNull(),
+  immediateSentAt: timestamp("immediate_sent_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [primaryKey({ columns: [table.userId, table.jobId] }), uniqueIndex("user_job_scores_job_user_unique").on(table.jobId, table.userId)]);
+
 export const applications = pgTable("applications", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -136,7 +158,8 @@ export const sourceHealth = pgTable("source_health", {
 });
 
 export const aiAnalyses = pgTable("ai_analyses", {
-  jobId: uuid("job_id").primaryKey().references(() => jobs.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  jobId: uuid("job_id").notNull().references(() => jobs.id, { onDelete: "cascade" }),
   score: integer("score").notNull(),
   recommendation: recommendationEnum("recommendation").notNull(),
   summary: text("summary").notNull(),
@@ -146,7 +169,7 @@ export const aiAnalyses = pgTable("ai_analyses", {
   estimatedFit: varchar("estimated_fit", { length: 32 }).notNull(),
   model: text("model"),
   analyzedAt: timestamp("analyzed_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [primaryKey({ columns: [table.userId, table.jobId] })]);
 
 export const notificationSettings = pgTable("notification_settings", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),

@@ -40,7 +40,7 @@ export async function runFetchPipeline(sources: JobSource[]) {
   if (db) for (const run of runs.filter((item) => !item.ok)) {
     await db.update(sourceHealth).set({ status: "error", lastCompletedAt: new Date(), durationMs: run.durationMs, lastError: run.error }).where(eq(sourceHealth.source, run.source));
   }
-  const aiAnalyzed = await analyzeRelevantJobs(profile);
+  const aiAnalyzed = await analyzeRelevantJobs();
   if (aiAnalyzed) console.info(JSON.stringify({ event: "ai.analysis_completed", analyzed: aiAnalyzed }));
   return runs;
 }

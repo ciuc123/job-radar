@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { hasPaidFeature, requireAppUser } from "@/lib/app-user";
 import { db } from "@/db";
 import { networkPipelines, notificationSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,14 +8,8 @@ import { getScoringProfile, rescoreJobs, saveProfile, updateJobApplication } fro
 import type { JobStatus } from "@/lib/types";
 import { redirect } from "next/navigation";
 
-async function requireUserId() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Sign in required");
-  return session.user.id;
-}
-
 export async function updateJobAction(formData: FormData) {
-  const userId = await requireUserId();
+  const { id: userId } = await requireAppUser();
   const jobId = String(formData.get("jobId") ?? "");
   const status = String(formData.get("status") ?? "NEW") as JobStatus;
   const noteValue = formData.get("notes");
@@ -26,7 +20,7 @@ export async function updateJobAction(formData: FormData) {
 }
 
 export async function saveProfileAction(formData: FormData) {
-  const userId = await requireUserId();
+  const { id: userId } = await requireAppUser();
   const list = (key: string) => String(formData.get(key) ?? "").split(",").map((item) => item.trim()).filter(Boolean);
   const parseThreshold = (key: string, fallback: number) => {
     const value = Number(formData.get(key));
@@ -59,7 +53,7 @@ export async function saveProfileAction(formData: FormData) {
 }
 
 export async function saveNetworkPipelineAction(formData: FormData) {
-  const userId = await requireUserId();
+  const { id: userId } = await requireAppUser();
   if (!db) throw new Error("Database is not configured");
   const name = String(formData.get("name") ?? "").trim();
   const status = String(formData.get("status") ?? "FOLLOW_UP");
@@ -70,11 +64,12 @@ export async function saveNetworkPipelineAction(formData: FormData) {
 }
 
 export async function saveNotificationSettingsAction(formData: FormData) {
-  const userId = await requireUserId();
+  const { id: userId } = await requireAppUser();
   if (!db) throw new Error("Database is not configured");
   const threshold = Number(formData.get("immediateThreshold"));
   if (!Number.isInteger(threshold) || threshold < 50 || threshold > 100) throw new Error("Notification threshold must be from 50 to 100");
   const values = { dailyDigestEnabled: formData.get("dailyDigestEnabled") === "on", immediateEnabled: formData.get("immediateEnabled") === "on", immediateThreshold: threshold };
+  if ((values.dailyDigestEnabled || values.immediateEnabled) && !(await hasPaidFeature("email_alerts"))) throw new Error("Email alerts require the Pro plan");
   await db.update(notificationSettings).set(values).where(eq(notificationSettings.userId, userId));
   redirect("/settings?notifications=updated");
 }

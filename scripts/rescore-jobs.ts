@@ -2,12 +2,9 @@ import { loadEnvConfig } from "@next/env";
 
 async function main() {
   loadEnvConfig(process.cwd());
-  const [{ db }, { getScoringProfile, rescoreJobs }] = await Promise.all([
-    import("@/db"), import("@/lib/repository/jobs"),
-  ]);
+  const [{ db }, { rescoreJobs }] = await Promise.all([import("@/db"), import("@/lib/repository/jobs")]);
   if (!db) throw new Error("DATABASE_URL is required to rescore saved jobs");
-  const profile = await getScoringProfile();
-  const rescored = await rescoreJobs(profile);
+  const rescored = await rescoreJobs();
   console.info(JSON.stringify({ event: "jobs.rescore_completed", rescored }));
 }
 

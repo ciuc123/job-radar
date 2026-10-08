@@ -40,6 +40,18 @@
 
 Commit each completed feature independently. Keep this checklist updated in the same feature commit. Never commit credentials or `.env` files.
 
+## Clerk authentication and paid features
+
+- [x] Clerk sign-in/sign-up, local account mapping, and removal of the Auth.js route
+- [x] Verified-email owner/admin allowlist and no-charge owner Pro entitlement
+- [x] Per-user job scores and AI analyses while retaining a shared fetched job corpus
+- [x] Pro feature enforcement for AI analysis and email alerts, including scheduled email workers
+- [x] Clerk Billing pricing page, webhook synchronization, owner account overview, and direct support/request link
+- [ ] Configure development and production Clerk instances, Google OAuth, Billing plans/features, Vercel secrets, and Clerk webhook in the provider dashboards
+- [ ] Apply migration 0004 to Neon and verify the existing account and data are linked after first Clerk sign-in
+
+**Clerk acceptance:** the existing verified owner account retains owned records and receives admin/Pro access; new users get isolated data and Free access; Pro features are checked server-side and by scheduled workers; webhook events are signature-verified and deduplicated.
+
 ## Deployment cost assumptions
 
 Use Vercel Hobby, Neon Free, public-repository GitHub Actions, and optional free-tier email. Disable paid AI by default. Provider quotas and free-plan terms can change; core discovery, scoring, and manual application review must work without paid integrations.

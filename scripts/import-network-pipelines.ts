@@ -7,8 +7,8 @@ type Pipeline = { name: string; status: string; cadence?: string; nextAction?: s
 
 async function main() {
   loadEnvConfig(process.cwd());
-  const email = process.env.ALLOWED_EMAIL?.trim().toLowerCase();
-  if (!email) throw new Error("Set ALLOWED_EMAIL to the account that owns these private tracker entries");
+  const email = process.env.APP_OWNER_EMAIL?.trim().toLowerCase();
+  if (!email) throw new Error("Set APP_OWNER_EMAIL to the account that owns these private tracker entries");
   const path = resolve(process.argv[2] || "private/network-pipelines.json");
   const entries = JSON.parse(await readFile(path, "utf8")) as Pipeline[];
   if (!Array.isArray(entries) || entries.some((entry) => !entry.name || !entry.status || typeof entry.notes !== "string")) {
@@ -17,7 +17,7 @@ async function main() {
   const [{ db }, { users, networkPipelines }] = await Promise.all([import("@/db"), import("@/db/schema")]);
   if (!db) throw new Error("DATABASE_URL is required to import private tracker entries");
   const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-  if (!user) throw new Error(`No registered user found for ALLOWED_EMAIL=${email}; sign in once before importing`);
+  if (!user) throw new Error(`No registered user found for APP_OWNER_EMAIL=${email}; sign in once before importing`);
   for (const entry of entries) {
     await db.insert(networkPipelines).values({
       userId: user.id, name: entry.name, status: entry.status,

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ArrowUpRight, BriefcaseBusiness, CircleCheck, Flame, Search, Settings2 } from "lucide-react";
 import type { DashboardJob } from "@/lib/repository/jobs";
 import { updateJobAction } from "@/app/actions";
+import { UserButton } from "@clerk/nextjs";
 
 const scoreClass = (score: number) => score >= 85 ? "score-hot" : score >= 70 ? "score-good" : score >= 50 ? "score-mid" : "score-low";
 const recommendationLabel = (value: string) => value === "MAYBE" ? "PIPELINE" : value;
@@ -15,7 +16,7 @@ const salaryLabel = (job: DashboardJob) => {
   return `${range}${job.salaryPeriod === "hourly" ? "/h" : job.salaryPeriod === "annual" ? "/yr" : job.salaryPeriod === "monthly" ? "/mo" : ""}`;
 };
 
-export function JobDashboard({ jobs, userName, databaseEnabled, now }: { jobs: DashboardJob[]; userName: string; databaseEnabled: boolean; now: string }) {
+export function JobDashboard({ jobs, userName, isAdmin, databaseEnabled, now }: { jobs: DashboardJob[]; userName: string; isAdmin: boolean; databaseEnabled: boolean; now: string }) {
   const [query, setQuery] = useState("");
   const [recommendation, setRecommendation] = useState("ALL");
   const [source, setSource] = useState("ALL");
@@ -58,7 +59,7 @@ export function JobDashboard({ jobs, userName, databaseEnabled, now }: { jobs: D
   return <main className="app-shell">
     <header className="topbar">
       <Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link>
-      <nav><Link href="/network">My network</Link><Link href="/sources">Sources</Link><Link href="/settings"><Settings2 size={16}/> Preferences</Link><span className="user-chip">{userName}</span></nav>
+      <nav><Link href="/network">My network</Link><Link href="/sources">Sources</Link><Link href="/settings"><Settings2 size={16}/> Preferences</Link><Link href="/billing">Plans</Link>{isAdmin && <Link href="/admin">Admin</Link>}<a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request">Request / support</a><span className="user-chip">{userName}</span><UserButton /></nav>
     </header>
     <section className="hero">
       <div><p className="eyebrow">{new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date()).toUpperCase()}</p><h1>Good morning, {userName.split(" ")[0]}.</h1><p className="muted">A short list of roles that deserve a closer look.</p></div>

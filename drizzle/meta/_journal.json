@@ -29,6 +29,13 @@
       "when": 1791414957460,
       "tag": "0003_immediate_alert_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791418550000,
+      "tag": "0004_clerk_accounts",
+      "breakpoints": true
     }
   ]
 }

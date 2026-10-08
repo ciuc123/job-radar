@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { getCurrentAppUser } from "@/lib/app-user";
 import { db } from "@/db";
 import { networkPipelines } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -8,9 +8,9 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function NetworkPage() {
-  const user = await auth();
-  if (!user?.user?.id) return <main className="auth-shell"><Link className="button button-primary" href="/signin">Sign in to view your private pipeline</Link></main>;
-  const entries = db ? await db.select().from(networkPipelines).where(eq(networkPipelines.userId, user.user.id)).orderBy(networkPipelines.updatedAt) : [];
+  const user = await getCurrentAppUser();
+  if (!user?.id) return <main className="auth-shell"><Link className="button button-primary" href="/signin">Sign in to view your private pipeline</Link></main>;
+  const entries = db ? await db.select().from(networkPipelines).where(eq(networkPipelines.userId, user.id)).orderBy(networkPipelines.updatedAt) : [];
   return <main className="page-shell"><header className="topbar"><Link className="brand" href="/">JOB RADAR</Link><nav><Link href="/">Jobs</Link><Link href="/network">My network</Link><Link href="/settings">Profile</Link></nav></header>
     <section className="page-heading"><div><p className="eyebrow">PRIVATE TRACKER</p><h1>Platforms & follow-ups</h1><p>Track profile reviews, waitlists, applications, and weekly check-ins separately from job discovery.</p></div></section>
     {!db && <p className="notice">Configure Neon to save private tracker entries.</p>}
