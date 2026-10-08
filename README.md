@@ -27,7 +27,7 @@ After applying migrations and signing in once with the account in `ALLOWED_EMAIL
 
 ## Deploy
 
-Create a Neon Postgres project and a Vercel project connected to the public GitHub repository. Set the variables from `.env.example` in Vercel. Run migrations using `npm run db:migrate` with the production `DATABASE_URL` before enabling the app. Add `DATABASE_URL` as a GitHub Actions secret. The scheduled workflow runs at 00:00 and 12:00 UTC; GitHub cron uses UTC and does not adjust for Romania's daylight-saving time. It can also be triggered manually from Actions.
+Create a Neon Postgres project and a Vercel project connected to the public GitHub repository. Set the variables from `.env.example` in Vercel. Run migrations using `npm run db:migrate` with the production `DATABASE_URL` before enabling the app. Add `DATABASE_URL` as a GitHub Actions secret. The scheduled workflow runs at 00:00 and 12:00 Europe/Bucharest time. It can also be triggered manually from Actions.
 
 Google sign-in requires OAuth client credentials. Restrict the OAuth consent audience and authorized users to your own account. Never commit `.env.local`, provider secrets, or Neon URLs.
 
