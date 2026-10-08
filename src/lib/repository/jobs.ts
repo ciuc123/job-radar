@@ -18,16 +18,10 @@ export type DashboardJob = ScoredJob & {
 
 export const hasDatabase = () => Boolean(db);
 
-const demoScore = new Map<number, number>([[0, 94], [1, 89], [2, 84], [3, 72], [5, 48], [6, 25], [7, 10]]);
-
 export const sampleJobs: DashboardJob[] = deduplicateJobs(realisticJobs).map((group, index) => {
   const scored = scoreJob(group.canonical);
-  const score = demoScore.get(index) ?? scored.score;
   return {
     ...scored,
-    score,
-    recommendation: score >= 85 ? "APPLY" : score >= 70 ? "REVIEW" : score >= 50 ? "MAYBE" : "REJECT",
-    scoreBreakdown: { ...scored.scoreBreakdown, ...(demoScore.has(index) ? { "sample.preview_score": score } : {}) },
     id: `demo-${index + 1}`,
     discoveredAt: new Date(Date.now() - index * 3_600_000).toISOString(),
     status: "NEW",
@@ -53,7 +47,7 @@ export async function getScoringProfile(userId?: string): Promise<ScoringProfile
 }
 
 export async function rescoreJobs(profile: ScoringProfile) {
-  if (!db) return;
+  if (!db) return 0;
   const rows = await db.select().from(jobs);
   for (const job of rows) {
     const scored = scoreJob({
@@ -66,6 +60,7 @@ export async function rescoreJobs(profile: ScoringProfile) {
     }, profile);
     await db.update(jobs).set({ score: scored.score, scoreBreakdown: scored.scoreBreakdown, recommendation: scored.recommendation, updatedAt: new Date() }).where(eq(jobs.id, job.id));
   }
+  return rows.length;
 }
 
 export async function getDashboardJobs(userId?: string): Promise<DashboardJob[]> {

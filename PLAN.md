@@ -9,6 +9,7 @@
 - [x] Source adapter contract with Himalayas and Laravel News; unavailable-source health states
 - [x] Normalization, canonical URL/title/content deduplication, and source URL aggregation
 - [x] Deterministic 0–100 scoring and recommendation thresholds
+- [x] Backend-first scoring tiers: backend pipeline, PHP/Laravel review, and salary-qualified full-remote strong match
 - [x] Dashboard search/filters, job detail, external Apply, Save, Reject, notes, and seed data
 - [x] Phase 1 test suite (normalization, dedupe, scoring, negatives, location, salary, source failures, thresholds)
 

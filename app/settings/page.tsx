@@ -19,7 +19,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const notification = db && session?.user?.id ? (await db.select().from(notificationSettings).where(eq(notificationSettings.userId, session.user.id)).limit(1))[0] : undefined;
   return <main className="app-shell settings-shell">
     <header className="topbar"><Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link><Link href="/" className="back-link"><ArrowLeft size={16}/> Dashboard</Link></header>
-    <section className="settings-content"><p className="eyebrow">YOUR PROFILE</p><h1>Scoring preferences</h1><p className="muted">Tune which roles rise to the top. Skills are matched against both title and description; role context affects how much a mention counts.</p>
+    <section className="settings-content"><p className="eyebrow">YOUR PROFILE</p><h1>Scoring preferences</h1><p className="muted">Backend roles enter your pipeline. PHP + Laravel backend roles are worth reviewing. Strong matches also need to be fully remote and meet your salary floor.</p>
       {updated && <div className="success-banner">Preferences saved.</div>}{!editable && <div className="demo-notice">Demo mode: preferences are shown but saving requires Neon.</div>}
       <form action={saveProfileAction} className="settings-form">
         <fieldset disabled={!editable}><legend>Experience</legend>
@@ -37,12 +37,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label>Excluded locations/signals <small>Comma-separated</small><textarea name="excludedLocations" defaultValue={join(profile.excludedLocations)}/></label>
           <label>Preferred employment types <small>Comma-separated</small><textarea name="preferredEmploymentTypes" defaultValue={join(profile.preferredEmploymentTypes)}/></label>
           <label>Negative signals <small>Comma-separated. Removing a default negative signal removes its built-in penalty.</small><textarea name="negativeSignals" defaultValue={join(profile.negativeSignals)}/></label>
-          <label>Minimum salary (leave blank for none)<input type="number" min="0" name="salaryMinimum" defaultValue={profile.salaryMinimum ?? ""}/></label>
+          <label>Minimum salary for a strong match (same numeric scale as the listing; leave blank to disable the salary gate)<input type="number" min="0" name="salaryMinimum" defaultValue={profile.salaryMinimum ?? ""}/></label>
         </fieldset>
         <fieldset disabled={!editable}><legend>Recommendation thresholds</legend><div className="threshold-grid">
-          <label>Apply from<input type="number" min="0" max="100" name="applyThreshold" defaultValue={profile.thresholds.apply ?? defaultProfile.thresholds.apply}/></label>
+          <label>Strong / Apply from<input type="number" min="0" max="100" name="applyThreshold" defaultValue={profile.thresholds.apply ?? defaultProfile.thresholds.apply}/></label>
           <label>Review from<input type="number" min="0" max="100" name="reviewThreshold" defaultValue={profile.thresholds.review ?? defaultProfile.thresholds.review}/></label>
-          <label>Maybe from<input type="number" min="0" max="100" name="maybeThreshold" defaultValue={profile.thresholds.maybe ?? defaultProfile.thresholds.maybe}/></label>
+          <label>Pipeline from<input type="number" min="0" max="100" name="maybeThreshold" defaultValue={profile.thresholds.maybe ?? defaultProfile.thresholds.maybe}/></label>
         </div><label>Scoring weight overrides <small>Optional JSON map. Keys include PHP, Laravel, senior, location.europe, employment.contract, juniorPenalty.</small><textarea name="scoreWeights" defaultValue={JSON.stringify(profile.scoreWeights, null, 2)}/></label></fieldset>
         {editable && <button className="button button-primary" type="submit"><Save size={15}/> Save preferences</button>}
       </form>

@@ -41,6 +41,8 @@ export async function saveProfileAction(formData: FormData) {
     const parsed = JSON.parse(String(formData.get("scoreWeights") || "{}")) as Record<string, unknown>;
     scoreWeights = Object.fromEntries(Object.entries(parsed).filter(([, value]) => typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= 100) as Array<[string, number]>);
   } catch { throw new Error("Scoring weights must be valid JSON"); }
+  const thresholds = { apply: parseThreshold("applyThreshold", 85), review: parseThreshold("reviewThreshold", 70), maybe: parseThreshold("maybeThreshold", 50) };
+  if (!(thresholds.apply > thresholds.review && thresholds.review > thresholds.maybe)) throw new Error("Thresholds must be ordered: Apply above Review above Pipeline");
   await saveProfile(userId, {
     headline: String(formData.get("headline") ?? "").trim(),
     experienceYears: Math.max(0, Math.min(60, years)),
@@ -50,7 +52,7 @@ export async function saveProfileAction(formData: FormData) {
     preferredLocations: list("preferredLocations"), excludedLocations: list("excludedLocations"),
     preferredEmploymentTypes: list("preferredEmploymentTypes"), negativeSignals: list("negativeSignals"),
     salaryMinimum,
-    thresholds: { apply: parseThreshold("applyThreshold", 85), review: parseThreshold("reviewThreshold", 70), maybe: parseThreshold("maybeThreshold", 50) }, scoreWeights,
+    thresholds, scoreWeights,
   });
   await rescoreJobs(await getScoringProfile(userId));
   redirect("/settings?updated=1");

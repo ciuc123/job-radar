@@ -7,6 +7,7 @@ import type { DashboardJob } from "@/lib/repository/jobs";
 import { updateJobAction } from "@/app/actions";
 
 const scoreClass = (score: number) => score >= 85 ? "score-hot" : score >= 70 ? "score-good" : score >= 50 ? "score-mid" : "score-low";
+const recommendationLabel = (value: string) => value === "MAYBE" ? "PIPELINE" : value;
 const salaryLabel = (job: DashboardJob) => {
   if (job.salaryMin == null && job.salaryMax == null) return "Salary not listed";
   const currency = job.salaryCurrency === "EUR" ? "€" : job.salaryCurrency ?? "";
@@ -18,7 +19,7 @@ export function JobDashboard({ jobs, userName, databaseEnabled, now }: { jobs: D
   const [query, setQuery] = useState("");
   const [recommendation, setRecommendation] = useState("ALL");
   const [source, setSource] = useState("ALL");
-  const [minimumScore, setMinimumScore] = useState(70);
+  const [minimumScore, setMinimumScore] = useState(50);
   const [status, setStatus] = useState("OPEN");
   const [company, setCompany] = useState("ALL");
   const [technology, setTechnology] = useState("ALL");
@@ -28,8 +29,10 @@ export function JobDashboard({ jobs, userName, databaseEnabled, now }: { jobs: D
   const [discovered, setDiscovered] = useState("ALL");
   const [salaryFloor, setSalaryFloor] = useState(0);
   const today = new Date(now).toDateString();
-  const strong = jobs.filter((job) => job.score >= 85 && job.status === "NEW").length;
-  const review = jobs.filter((job) => job.score >= 70 && job.score < 85 && job.status === "NEW").length;
+  const openStatuses = ["NEW", "SAVED", "REVIEW"];
+  const pipeline = jobs.filter((job) => job.scoreBreakdown["role.backend"] > 0 && openStatuses.includes(job.status)).length;
+  const strong = jobs.filter((job) => job.recommendation === "APPLY" && openStatuses.includes(job.status)).length;
+  const review = jobs.filter((job) => job.recommendation === "REVIEW" && openStatuses.includes(job.status)).length;
   const applied = jobs.filter((job) => ["APPLIED", "INTERVIEW", "OFFER"].includes(job.status)).length;
   const filtered = useMemo(() => jobs.filter((job) => {
     const haystack = `${job.title} ${job.company} ${job.description} ${job.technologies.join(" ")}`.toLowerCase();
@@ -62,18 +65,19 @@ export function JobDashboard({ jobs, userName, databaseEnabled, now }: { jobs: D
       <div className="hero-actions"><span className="sync-status"><i className={databaseEnabled ? "sync-ready" : ""}/>{databaseEnabled ? "Database configured" : "Demo data · connect Neon to sync jobs"}</span></div>
     </section>
     <section className="stats-grid" aria-label="Job summary">
-      <article className="stat-card"><span>New today</span><strong>{jobs.filter((job) => new Date(job.discoveredAt).toDateString() === today).length || jobs.length}</strong><small>across your sources</small></article>
-      <article className="stat-card stat-highlight"><span><Flame size={14}/> Strong matches</span><strong>{strong || jobs.filter((job) => job.score >= 85).length}</strong><small>score 85 and above</small></article>
-      <article className="stat-card"><span>Worth reviewing</span><strong>{review || jobs.filter((job) => job.score >= 70 && job.score < 85).length}</strong><small>score 70–84</small></article>
-      <article className="stat-card"><span><CircleCheck size={14}/> In your pipeline</span><strong>{applied}</strong><small>applied · interview · offer</small></article>
+      <article className="stat-card"><span>New today</span><strong>{jobs.filter((job) => new Date(job.discoveredAt).toDateString() === today).length}</strong><small>across your sources</small></article>
+      <article className="stat-card"><span><BriefcaseBusiness size={14}/> In your pipeline</span><strong>{pipeline}</strong><small>backend roles</small></article>
+      <article className="stat-card"><span>Worth reviewing</span><strong>{review}</strong><small>PHP + Laravel backend</small></article>
+      <article className="stat-card stat-highlight"><span><Flame size={14}/> Strong matches</span><strong>{strong}</strong><small>remote + salary target</small></article>
+      <article className="stat-card"><span><CircleCheck size={14}/> Applied</span><strong>{applied}</strong><small>applied · interview · offer</small></article>
     </section>
     <section className="list-section">
       <div className="section-heading"><div><p className="eyebrow">YOUR SHORTLIST</p><h2>Jobs worth your time <span>{filtered.length}</span></h2></div><span className="quiet-note"><BriefcaseBusiness size={15}/> Apply manually, always</span></div>
       <div className="filters">
         <label className="search-box"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, company, skills…" aria-label="Search jobs"/></label>
-        <select value={recommendation} onChange={(event) => setRecommendation(event.target.value)} aria-label="Recommendation"><option value="ALL">Any recommendation</option><option>APPLY</option><option>REVIEW</option><option>MAYBE</option><option>REJECT</option></select>
+        <select value={recommendation} onChange={(event) => setRecommendation(event.target.value)} aria-label="Recommendation"><option value="ALL">Any recommendation</option><option>APPLY</option><option>REVIEW</option><option value="MAYBE">PIPELINE</option><option>REJECT</option></select>
         <select value={source} onChange={(event) => setSource(event.target.value)} aria-label="Source"><option value="ALL">Any source</option>{sources.map((value) => <option key={value} value={value}>{value}</option>)}</select>
-        <select value={String(minimumScore)} onChange={(event) => setMinimumScore(Number(event.target.value))} aria-label="Minimum score"><option value="0">Any score</option><option value="50">50+</option><option value="70">70+</option><option value="85">85+</option></select>
+        <select value={String(minimumScore)} onChange={(event) => setMinimumScore(Number(event.target.value))} aria-label="Minimum score"><option value="0">Any score</option><option value="50">Pipeline+</option><option value="70">Review+</option><option value="85">Strong matches</option></select>
         <select value={company} onChange={(event) => setCompany(event.target.value)} aria-label="Company"><option value="ALL">Any company</option>{companies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={technology} onChange={(event) => setTechnology(event.target.value)} aria-label="Technology"><option value="ALL">Any technology</option>{technologies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={seniority} onChange={(event) => setSeniority(event.target.value)} aria-label="Seniority"><option value="ALL">Any seniority</option>{["Senior", "Staff", "Lead", "Mid", "Junior"].map((value) => <option key={value}>{value}</option>)}</select>
@@ -84,8 +88,8 @@ export function JobDashboard({ jobs, userName, databaseEnabled, now }: { jobs: D
         <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Status"><option value="OPEN">Open jobs</option><option value="ALL">All statuses</option><option value="SAVED">Saved</option><option value="APPLIED">Applied</option><option value="INTERVIEW">Interview</option><option value="OFFER">Offer</option><option value="REJECTED">Rejected</option></select>
       </div>
       <div className="job-list">{filtered.length ? filtered.map((job) => <article className="job-card" key={job.id}>
-        <div className={`score-badge ${scoreClass(job.score)}`}><strong>{job.score}</strong><small>{job.score >= 85 ? "MATCH" : job.score >= 70 ? "REVIEW" : "FIT"}</small></div>
-        <div className="job-main"><div className="job-title-line"><Link href={`/jobs/${job.id}`} className="job-title">{job.title}</Link><span className={`recommendation recommendation-${job.recommendation.toLowerCase()}`}>{job.recommendation}</span></div><p className="company-line">{job.company}<span>·</span>{job.location || job.remoteType}<span>·</span>{salaryLabel(job)}</p><div className="tech-tags">{job.technologies.slice(0, 7).map((technology) => <span key={technology}>{technology}</span>)}</div><div className="job-meta"><span>{job.sources.map((item) => item.source).join(" · ")} · Found {new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(job.discoveredAt))}</span><div className="quick-actions"><a href={job.sources[0]?.url ?? job.url} target="_blank" rel="noreferrer">Apply <ArrowUpRight size={12}/></a>{databaseEnabled && <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><input type="hidden" name="status" value="REJECTED"/><button type="submit">Reject</button></form>}</div></div></div>
+        <div className={`score-badge ${scoreClass(job.score)}`}><strong>{job.score}</strong><small>{job.recommendation === "APPLY" ? "STRONG" : job.recommendation === "REVIEW" ? "REVIEW" : job.recommendation === "MAYBE" ? "PIPELINE" : "FIT"}</small></div>
+        <div className="job-main"><div className="job-title-line"><Link href={`/jobs/${job.id}`} className="job-title">{job.title}</Link><span className={`recommendation recommendation-${job.recommendation.toLowerCase()}`}>{recommendationLabel(job.recommendation)}</span></div><p className="company-line">{job.company}<span>·</span>{job.location || job.remoteType}<span>·</span>{salaryLabel(job)}</p><div className="tech-tags">{job.technologies.slice(0, 7).map((technology) => <span key={technology}>{technology}</span>)}</div><div className="job-meta"><span>{job.sources.map((item) => item.source).join(" · ")} · Found {new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(job.discoveredAt))}</span><div className="quick-actions"><a href={job.sources[0]?.url ?? job.url} target="_blank" rel="noreferrer">Apply <ArrowUpRight size={12}/></a>{databaseEnabled && <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><input type="hidden" name="status" value="REJECTED"/><button type="submit">Reject</button></form>}</div></div></div>
         <Link href={`/jobs/${job.id}`} className="card-arrow" aria-label={`View ${job.title}`}><ArrowUpRight size={19}/></Link>
       </article>) : <div className="empty-state"><h3>No jobs match those filters.</h3><p>Try lowering the score cutoff or changing your search.</p></div>}</div>
       <p className="attribution">Job data is sourced from the listed boards. {sources.includes("himalayas") && <>Himalayas listings are attributed to <a href="https://himalayas.app" target="_blank" rel="noreferrer">Himalayas</a>. </>}Please verify each role on its original listing before applying.</p>

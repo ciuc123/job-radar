@@ -13,6 +13,7 @@
     "db:seed": "node --import tsx scripts/seed.ts",
     "network:import": "node --import tsx scripts/import-network-pipelines.ts",
     "jobs:fetch": "node --import tsx scripts/fetch-jobs.ts",
+    "jobs:rescore": "node --import tsx scripts/rescore-jobs.ts",
     "notifications:send": "node --import tsx scripts/send-digests.ts"
   },
   "dependencies": {

@@ -12,6 +12,8 @@ A private, personal dashboard that finds remote developer roles, scores them aga
 
 The app does not auto-apply. “Apply” always opens the original job page. Rules-based scoring works without AI. Optional AI analysis uses an OpenAI-compatible endpoint and is off by default; daily digest uses Resend and must also be enabled in settings and configured with GitHub Actions secrets. Free plans have changing quotas; do not enable paid overages if maintaining a $0 ceiling matters.
 
+Scoring tiers follow a backend-first pipeline: backend roles enter the pipeline; backend roles mentioning both PHP and Laravel are worth reviewing; strong matches additionally require full remote work and a salary at or above the configured minimum. Configure the salary floor under Preferences; until one is set, no job can qualify as a strong match.
+
 ## Local setup
 
 1. Install Node.js 22+ and run `npm install`.
@@ -24,6 +26,8 @@ The app does not auto-apply. “Apply” always opens the original job page. Rul
 The local Docker database is `postgresql://postgres:jobradar@localhost:5432/jobradar`. Without database credentials, the UI uses sample jobs in read-only demo mode. Mutating actions require a configured database and authenticated user.
 
 After applying migrations and signing in once with the account in `ALLOWED_EMAIL`, run `npm run network:import` to load `private/network-pipelines.json` into that user's private tracker. The JSON file is git-ignored and must not be committed.
+
+After deploying a scoring-rule change, run `npm run jobs:rescore` once with the production `DATABASE_URL` to update scores for jobs already saved in Neon.
 
 ## Deploy
 

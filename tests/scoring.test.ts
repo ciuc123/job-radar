@@ -11,7 +11,8 @@ test("scores strong Laravel/PHP contract matches above Java-only and location-in
   assert.ok(strong.score > java.score);
   assert.ok(strong.score > usOnly.score);
   assert.ok(strong.score >= 70);
-  assert.ok(java.score < 50);
+  assert.ok(java.score < defaultProfile.thresholds.review);
+  assert.equal(java.recommendation, "MAYBE");
 });
 
 test("junior, internship, legacy PHP, onsite, and relocation are penalized", () => {
@@ -39,7 +40,43 @@ test("thresholds are configurable and map exactly to recommendations", () => {
 
 test("minimum salary preference penalizes below-minimum roles", () => {
   const profile = { ...defaultProfile, salaryMinimum: 40 };
-  assert.ok(scoreJob(realisticJobs[21], profile).score < scoreJob(realisticJobs[22], profile).score);
+  const lowPay = scoreJob(realisticJobs[21], profile);
+  const noSalary = scoreJob(realisticJobs[22], profile);
+  assert.ok(lowPay.scoreBreakdown["negative.salary_below_minimum"] < 0);
+  assert.equal(noSalary.scoreBreakdown["negative.salary_below_minimum"], undefined);
+});
+
+test("pipeline, review, and strong-match tiers follow the requested backend criteria", () => {
+  const backendOnly = scoreJob(job({
+    title: "Senior Backend Engineer", description: "Build backend services in Java.", technologies: ["Java"],
+  }));
+  const phpLaravel = scoreJob(job({
+    title: "Senior Laravel Backend Engineer", description: "Build backend APIs with PHP and Laravel as the core stack.",
+  }));
+  const strong = scoreJob(job({
+    title: "Senior Laravel Backend Engineer", description: "Build backend APIs with PHP and Laravel as the core stack.",
+    salaryMin: 70, salaryMax: 90, salaryCurrency: "EUR", salaryPeriod: "hourly", remoteType: "Full Remote",
+  }), { ...defaultProfile, salaryMinimum: 60 });
+
+  assert.equal(backendOnly.recommendation, "MAYBE");
+  assert.ok(backendOnly.score >= defaultProfile.thresholds.maybe && backendOnly.score < defaultProfile.thresholds.review);
+  assert.equal(phpLaravel.recommendation, "REVIEW");
+  assert.ok(phpLaravel.score >= defaultProfile.thresholds.review && phpLaravel.score < defaultProfile.thresholds.apply);
+  assert.equal(strong.recommendation, "APPLY");
+  assert.ok(strong.score >= defaultProfile.thresholds.apply);
+});
+
+test("missing salary floor, low salary, hybrid work, and hard negative signals prevent strong tier", () => {
+  const role = { title: "Senior Laravel Backend Engineer", description: "Build backend APIs with PHP and Laravel as the core stack." };
+  const profile = { ...defaultProfile, salaryMinimum: 60 };
+  const lowPay = scoreJob(job({ ...role, salaryMin: 30, salaryMax: 50, remoteType: "Remote" }), profile);
+  const hybrid = scoreJob(job({ ...role, salaryMin: 70, salaryMax: 90, remoteType: "Hybrid" }), profile);
+  const noConfiguredFloor = scoreJob(job({ ...role, salaryMin: 70, salaryMax: 90, remoteType: "Remote" }));
+  const junior = scoreJob(job({ ...role, title: "Junior Laravel Backend Engineer", salaryMin: 70, salaryMax: 90, remoteType: "Remote" }), profile);
+  assert.equal(lowPay.recommendation, "REVIEW");
+  assert.equal(hybrid.recommendation, "REVIEW");
+  assert.equal(noConfiguredFloor.recommendation, "REVIEW");
+  assert.equal(junior.recommendation, "MAYBE");
 });
 
 test("weight overrides and preferred location edits change rankings", () => {
