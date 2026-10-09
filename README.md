@@ -49,3 +49,9 @@ For optional AI, configure `AI_ANALYSIS_ENABLED=true`, `AI_BASE_URL`, `AI_API_KE
 
 See [PLAN.md](./PLAN.md) for feature status and acceptance criteria.
 See [docs/CLERK_SETUP.md](./docs/CLERK_SETUP.md) for exact Clerk, Google OAuth, Billing, webhook, and Vercel setup steps.
+
+# Commands
+## Fetch jobs
+```bash
+npm run jobs:fetch
+```

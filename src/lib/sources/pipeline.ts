@@ -7,6 +7,26 @@ import { analyzeRelevantJobs } from "@/lib/ai/analyzer";
 
 export type SourceRun = { source: string; ok: boolean; discovered: number; added: number; duplicates: number; durationMs: number; error?: string };
 
+function describeError(error: unknown) {
+  const parts: string[] = [];
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    if (current instanceof Error) {
+      const detail = current as Error & { code?: unknown; detail?: unknown };
+      const code = detail.code ? ` [${String(detail.code)}]` : "";
+      const pgDetail = detail.detail ? `; ${String(detail.detail)}` : "";
+      parts.push(`${current.message}${code}${pgDetail}`);
+      current = detail.cause;
+    } else {
+      parts.push(typeof current === "string" ? current : String(current));
+      break;
+    }
+  }
+  return parts.join(" | ") || "Unknown source error";
+}
+
 export async function runSourcesIndependently(sources: JobSource[], process: (source: JobSource) => Promise<{ discovered: number; added: number; duplicates: number }>): Promise<SourceRun[]> {
   const results: SourceRun[] = [];
   for (const source of sources) {
@@ -16,7 +36,7 @@ export async function runSourcesIndependently(sources: JobSource[], process: (so
       const metrics = await process(source);
       results.push({ source: source.id, ok: true, ...metrics, durationMs: Date.now() - started });
     } catch (error) {
-      results.push({ source: source.id, ok: false, discovered: 0, added: 0, duplicates: 0, durationMs: Date.now() - started, error: error instanceof Error ? error.message : "Unknown source error" });
+      results.push({ source: source.id, ok: false, discovered: 0, added: 0, duplicates: 0, durationMs: Date.now() - started, error: describeError(error) });
     }
   }
   return results;
