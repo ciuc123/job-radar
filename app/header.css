@@ -12,6 +12,8 @@ html{scroll-padding-top:var(--site-header-height)}
 .mobile-list a{font-size:18px;font-weight:700;color:var(--ink)}
 .desktop-nav{display:flex;align-items:center;gap:20px}
 .desktop-nav a.active,.topbar nav a.active{color:var(--green);font-weight:800}
+.clerk-account-menu{display:flex;align-items:center;flex:0 0 auto}
+.mobile-account{display:flex;align-items:center;padding:0 0 8px;border-bottom:1px solid var(--line)}
 
 /* when header hidden (scrolling down) move it up out of view */
 .topbar.hidden{transform:translateY(-100%);transition:transform .18s ease;}

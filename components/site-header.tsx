@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
-export default function SiteHeader({ userName, isAdmin, backHref, backLabel }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode }) {
+export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
@@ -54,6 +54,8 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel }: {
       if (!open) return;
       const path = (e.composedPath && e.composedPath()) || (e as any).path || [];
       const nav = navRef.current;
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest(".cl-userButtonPopoverCard, [data-clerk-element='userButtonPopoverCard']")) return;
       if (nav && !path.includes(nav)) {
         close();
       }
@@ -124,8 +126,7 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel }: {
           <Link href="/billing" className={isActive('/billing') ? 'active' : ''}>Plans</Link>
           {isAdmin && <Link href="/admin" className={isActive('/admin') ? 'active' : ''}>Admin</Link>}
           <a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request">Request / support</a>
-          <span className="user-chip">{userName}</span>
-          <UserButton />
+          <div className="clerk-account-menu"><UserButton showName /></div>
         </div>
 
         <div className={`mobile-dropdown hamburger-only ${open ? 'open' : ''}`} aria-hidden={!open}>
@@ -136,6 +137,7 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel }: {
             </button>
           </div>
           <div className="mobile-list">
+            <div className="mobile-account"><UserButton showName /></div>
             <Link href="/" onClick={close} className={isActive('/') ? 'active' : ''}>Jobs</Link>
             <Link href="/network" onClick={close} className={isActive('/network') ? 'active' : ''}>My network</Link>
             <Link href="/sources" onClick={close} className={isActive('/sources') ? 'active' : ''}>Sources</Link>
@@ -143,9 +145,6 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel }: {
             <Link href="/billing" onClick={close} className={isActive('/billing') ? 'active' : ''}>Plans</Link>
             {isAdmin && <Link href="/admin" onClick={close}>Admin</Link>}
             <a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request" onClick={close}>Request / support</a>
-            <div style={{paddingTop:8}}>
-              <span className="user-chip">{userName}</span>
-            </div>
           </div>
         </div>
       </nav>
