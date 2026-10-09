@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
 import { sourceRegistry } from "@/lib/sources/registry";
 import Link from "next/link";
+import SiteHeader from "@/components/site-header";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,7 @@ export default async function SourcesPage() {
 
   return (
     <main className="page-shell">
-      <header className="topbar">
-        <Link className="brand" href="/">JOB RADAR</Link>
-        <nav><Link href="/">Jobs</Link><Link href="/network">My network</Link><Link href="/sources">Source health</Link></nav>
-      </header>
+      <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} />
       <section className="page-heading">
         <p className="eyebrow">OPERATIONS</p>
         <h1>Source health</h1>

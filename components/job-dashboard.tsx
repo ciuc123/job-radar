@@ -2,21 +2,32 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, BriefcaseBusiness, CircleCheck, Flame, Search, Settings2 } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, CircleCheck, Flame, Search } from "lucide-react";
 import type { DashboardJob } from "@/lib/repository/jobs";
 import { updateJobAction } from "@/app/actions";
-import { UserButton } from "@clerk/nextjs";
+import SiteHeader from "./site-header";
 
 const scoreClass = (score: number) => score >= 85 ? "score-hot" : score >= 70 ? "score-good" : score >= 50 ? "score-mid" : "score-low";
 const recommendationLabel = (value: string) => value === "MAYBE" ? "PIPELINE" : value;
+function locationLabel(value: string) {
+  let label = value.trim();
+  const opens = (label.match(/\(/g) ?? []).length;
+  let closes = (label.match(/\)/g) ?? []).length;
+  while (closes > opens && label.endsWith(")")) {
+    label = label.slice(0, -1).trimEnd();
+    closes--;
+  }
+  return label;
+}
 const salaryLabel = (job: DashboardJob) => {
   if (job.salaryMin == null && job.salaryMax == null) return "Salary not listed";
   const currency = job.salaryCurrency === "EUR" ? "€" : job.salaryCurrency ?? "";
-  const range = job.salaryMin != null && job.salaryMax != null ? `${currency}${job.salaryMin.toLocaleString()}–${currency}${job.salaryMax.toLocaleString()}` : `${currency}${(job.salaryMin ?? job.salaryMax)?.toLocaleString()}`;
+  const fmt = (n?: number) => n == null ? "" : new Intl.NumberFormat().format(n);
+  const range = job.salaryMin != null && job.salaryMax != null ? `${currency}${fmt(job.salaryMin)}–${currency}${fmt(job.salaryMax)}` : `${currency}${fmt(job.salaryMin ?? job.salaryMax)}`;
   return `${range}${job.salaryPeriod === "hourly" ? "/h" : job.salaryPeriod === "annual" ? "/yr" : job.salaryPeriod === "monthly" ? "/mo" : ""}`;
 };
 
-export function JobDashboard({ jobs, userName, isAdmin, databaseEnabled, now }: { jobs: DashboardJob[]; userName: string; isAdmin: boolean; databaseEnabled: boolean; now: string }) {
+export function JobDashboard({ jobs, locations: databaseLocations, userName, isAdmin, databaseEnabled, now }: { jobs: DashboardJob[]; locations: string[]; userName: string; isAdmin: boolean; databaseEnabled: boolean; now: string }) {
   const [query, setQuery] = useState("");
   const [recommendation, setRecommendation] = useState("ALL");
   const [source, setSource] = useState("ALL");
@@ -54,13 +65,10 @@ export function JobDashboard({ jobs, userName, isAdmin, databaseEnabled, now }: 
   const sources = [...new Set(jobs.flatMap((job) => job.sources.map((item) => item.source)))];
   const companies = [...new Set(jobs.map((job) => job.company))].sort();
   const technologies = [...new Set(jobs.flatMap((job) => job.technologies))].sort();
-  const locations = [...new Set(jobs.map((job) => job.location).filter(Boolean))].sort();
+  const locations = [...new Set((databaseLocations.length ? databaseLocations : jobs.map((job) => job.location)).map(locationLabel).filter(Boolean))].sort();
 
   return <main className="app-shell">
-    <header className="topbar">
-      <Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link>
-      <nav><Link href="/network">My network</Link><Link href="/sources">Sources</Link><Link href="/settings"><Settings2 size={16}/> Preferences</Link><Link href="/billing">Plans</Link>{isAdmin && <Link href="/admin">Admin</Link>}<a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request">Request / support</a><span className="user-chip">{userName}</span><UserButton /></nav>
-    </header>
+    <SiteHeader userName={userName} isAdmin={isAdmin} />
     <section className="hero">
       <div><p className="eyebrow">{new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date()).toUpperCase()}</p><h1>Good morning, {userName.split(" ")[0]}.</h1><p className="muted">A short list of roles that deserve a closer look.</p></div>
       <div className="hero-actions"><span className="sync-status"><i className={databaseEnabled ? "sync-ready" : ""}/>{databaseEnabled ? "Database configured" : "Demo data · connect Neon to sync jobs"}</span></div>
@@ -82,7 +90,7 @@ export function JobDashboard({ jobs, userName, isAdmin, databaseEnabled, now }: 
         <select value={company} onChange={(event) => setCompany(event.target.value)} aria-label="Company"><option value="ALL">Any company</option>{companies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={technology} onChange={(event) => setTechnology(event.target.value)} aria-label="Technology"><option value="ALL">Any technology</option>{technologies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={seniority} onChange={(event) => setSeniority(event.target.value)} aria-label="Seniority"><option value="ALL">Any seniority</option>{["Senior", "Staff", "Lead", "Mid", "Junior"].map((value) => <option key={value}>{value}</option>)}</select>
-        <select value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Location"><option value="ALL">Any location</option>{locations.map((value) => <option key={value}>{value}</option>)}</select>
+        <select value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Location"><option value="ALL">Any location</option>{locations.map((value) => <option key={value} value={value}>{value}</option>)}</select>
         <select value={employment} onChange={(event) => setEmployment(event.target.value)} aria-label="Employment type"><option value="ALL">Any employment</option>{["Contract", "Freelance", "Full-time", "Part-time", "Intern"].map((value) => <option key={value}>{value}</option>)}</select>
         <select value={String(salaryFloor)} onChange={(event) => setSalaryFloor(Number(event.target.value))} aria-label="Minimum salary"><option value="0">Any salary</option><option value="25">25+ listed</option><option value="50">50+ listed</option><option value="75">75+ listed</option></select>
         <select value={discovered} onChange={(event) => setDiscovered(event.target.value)} aria-label="Date discovered"><option value="ALL">Any date</option><option value="TODAY">Discovered today</option><option value="WEEK">Last 7 days</option></select>

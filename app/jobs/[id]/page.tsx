@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Bookmark, CalendarDays, CircleDollarSign, MapPin, Sparkles } from "lucide-react";
+import SiteHeader from "@/components/site-header";
 import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
 import { updateJobAction } from "@/app/actions";
 import { getDashboardJobs, hasDatabase } from "@/lib/repository/jobs";
@@ -22,7 +23,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const aiAnalysis = db && canUseAi && user && !id.startsWith("demo-") ? (await db.select().from(aiAnalyses).where(and(eq(aiAnalyses.jobId, id), eq(aiAnalyses.userId, user.id))).limit(1))[0] : undefined;
 
   return <main className="app-shell detail-shell">
-    <header className="topbar"><Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link><Link href="/" className="back-link"><ArrowLeft size={16}/> Back to shortlist</Link></header>
+    <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} backHref="/" backLabel={<><ArrowLeft size={16}/> Back to shortlist</>} />
     <div className="detail-layout">
       <section className="detail-main">
         <div className="detail-heading"><div className={`score-badge score-large ${job.score >= 85 ? "score-hot" : job.score >= 70 ? "score-good" : job.score >= 50 ? "score-mid" : "score-low"}`}><strong>{job.score}</strong><small>FIT SCORE</small></div><div><p className="eyebrow">{job.sources.map((item) => item.source).join(" · ")}</p><h1>{job.title}</h1><p className="detail-company">{job.company}</p></div></div>

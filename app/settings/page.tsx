@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
+import SiteHeader from "@/components/site-header";
 import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
 import { saveNotificationSettingsAction, saveProfileAction } from "@/app/actions";
 import { defaultProfile } from "@/lib/profile";
@@ -19,7 +20,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { updated, notifications } = await searchParams;
   const notification = db && user?.id ? (await db.select().from(notificationSettings).where(eq(notificationSettings.userId, user.id)).limit(1))[0] : undefined;
   return <main className="app-shell settings-shell">
-    <header className="topbar"><Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link><Link href="/" className="back-link"><ArrowLeft size={16}/> Dashboard</Link></header>
+    <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} backHref="/" backLabel={<><ArrowLeft size={16}/> Dashboard</>} />
     <section className="settings-content"><p className="eyebrow">YOUR PROFILE</p><h1>Scoring preferences</h1><p className="muted">Backend roles enter your pipeline. PHP + Laravel backend roles are worth reviewing. Strong matches also need to be fully remote and meet your salary floor.</p>
       {updated && <div className="success-banner">Preferences saved.</div>}{!editable && <div className="demo-notice">Demo mode: preferences are shown but saving requires Neon.</div>}
       <form action={saveProfileAction} className="settings-form">

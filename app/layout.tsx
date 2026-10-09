@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import Link from "next/link";
 import "./globals.css";
+import "./header.css";
 
 export const metadata: Metadata = {
   title: "Job Radar",

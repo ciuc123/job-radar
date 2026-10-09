@@ -87,6 +87,15 @@ export async function getDashboardJobs(userId?: string): Promise<DashboardJob[]>
   }));
 }
 
+export async function getJobLocations(): Promise<string[]> {
+  if (!db) return [];
+  const rows = await db.selectDistinct({ location: jobs.location })
+    .from(jobs)
+    .where(sql`btrim(${jobs.location}) <> ''`)
+    .orderBy(jobs.location);
+  return rows.map(({ location }) => location.trim()).filter(Boolean);
+}
+
 async function ensureUserScores(userId: string) {
   if (!db) return;
   const existing = new Set((await db.select({ jobId: userJobScores.jobId }).from(userJobScores).where(eq(userJobScores.userId, userId))).map((item) => item.jobId));
