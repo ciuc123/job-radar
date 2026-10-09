@@ -1,11 +1,12 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-const isPublic = createRouteMatcher(["/signin(.*)", "/api/webhooks/clerk(.*)"]);
+// Keep Clerk middleware active so Clerk cookies and auth state are parsed,
+// but do NOT force protection on public pages. Saving and other write
+// operations remain protected server-side via `requireAppUser()`.
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublic(request)) await auth.protect();
-});
+// No-op middleware: initialize Clerk but don't call auth.protect() globally.
+// This allows anonymous users to browse the app. Server actions that write
+// data already call `requireAppUser()` and will continue to require sign-in.
+export default clerkMiddleware();
 
-export const config = {
-  matcher: ["/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)", "/(api|trpc)(.*)"],
-};
+export const config = { matcher: [ "/((?!_next|[^?]\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).)", "/(api|trpc)(.*)" ], };
