@@ -23,9 +23,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AI_ANALYSIS_ENABLED: ${{ secrets.AI_ANALYSIS_ENABLED }}
-          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          AI_MODEL: ${{ secrets.AI_MODEL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          AI_MODEL_BULK: ${{ secrets.AI_MODEL_BULK }}
+          AI_MONTHLY_BUDGET_USD: ${{ secrets.AI_MONTHLY_BUDGET_USD }}
+          AI_MAX_JOBS_PER_USER_RUN: ${{ secrets.AI_MAX_JOBS_PER_USER_RUN }}
       - if: ${{ always() && !cancelled() }}
         run: npm run notifications:send
         env:

@@ -23,6 +23,7 @@ export async function hasPaidFeature(feature: "ai_analysis" | "email_alerts") {
   const user = await getCurrentAppUser();
   if (!user) return false;
   if (user.ownerPro) return true;
+  if (feature === "ai_analysis" && user.aiBeta) return true;
   const { has } = await auth();
   return has({ feature });
 }
