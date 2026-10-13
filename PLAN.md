@@ -23,6 +23,7 @@
 - [ ] Scheduled pre-analysis via the Message Batches API (50% cheaper) and analysis feedback (👍/👎) feeding the eval set
 - [x] Daily email digest and configurable score threshold notifications
 - [x] Scheduled source fetching through GitHub Actions, with independent source failures
+- [x] Pro "Fetch all sources" button on `/sources` (Clerk feature `source_refresh`, shared cooldown, no AI pre-analysis on manual runs)
 - [x] Run scheduled source fetch at 00:00 and 12:00 UTC
 - [x] Source health and fetch execution logs
 

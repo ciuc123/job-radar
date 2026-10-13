@@ -24,7 +24,7 @@ export async function requireAppUser() {
   return user;
 }
 
-export async function hasPaidFeature(feature: "ai_analysis" | "email_alerts") {
+export async function hasPaidFeature(feature: "ai_analysis" | "email_alerts" | "source_refresh") {
   const user = await getCurrentAppUser();
   if (!user) return false;
   if (user.ownerPro) return true;

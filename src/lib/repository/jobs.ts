@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, getTableColumns, inArray, notExists, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, notExists, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { applications, candidateProfiles, jobs, sourceListings, userJobScores, users } from "@/db/schema";
 import { defaultProfile } from "@/lib/profile";
@@ -90,6 +90,7 @@ export async function rescoreJobs(profile?: ScoringProfile, userId?: string) {
 
 type DashboardOptions = { jobId?: string; full?: boolean };
 const LIST_DESCRIPTION_CHARS = 1500;
+const LIST_MAX_AGE_DAYS = 30;
 
 // List view: descriptions are truncated and rawData is dropped so the page payload stays small.
 // Pass `full` (detail page) to get the complete row for a single `jobId`.
@@ -101,12 +102,13 @@ export async function getDashboardJobs(userId?: string, { jobId, full = false }:
     .from(jobs)
     .innerJoin(userJobScores, and(eq(userJobScores.jobId, jobs.id), eq(userJobScores.userId, userId)))
     .leftJoin(applications, and(eq(applications.jobId, jobs.id), eq(applications.userId, userId)))
-    .where(jobId ? eq(jobs.id, jobId) : undefined)
+    // The corpus grows by hundreds of jobs a day; the list only shows listings still seen in a feed recently,
+    // plus anything this user has already acted on (saved, applied, notes).
+    .where(jobId ? eq(jobs.id, jobId) : or(gte(jobs.updatedAt, new Date(Date.now() - LIST_MAX_AGE_DAYS * 86_400_000)), isNotNull(applications.status)))
     .orderBy(desc(userJobScores.score), desc(jobs.discoveredAt));
   if (!rows.length) return [];
   const links = await db.select({ jobId: sourceListings.jobId, source: sourceListings.source, url: sourceListings.url }).from(sourceListings)
-    .innerJoin(userJobScores, and(eq(userJobScores.jobId, sourceListings.jobId), eq(userJobScores.userId, userId)))
-    .where(jobId ? eq(sourceListings.jobId, jobId) : undefined)
+    .where(inArray(sourceListings.jobId, rows.map(({ job }) => job.id)))
     .orderBy(asc(sourceListings.source));
   const linksByJob = new Map<string, Array<{ source: string; url: string }>>();
   for (const link of links) {
@@ -175,10 +177,13 @@ export async function persistJobs(source: string, normalizedJobs: NormalizedJob[
   const candidates = deduplicateJobs(normalizedJobs).map((group) => ({ group, raw: group.canonical, hash: contentHash(group.canonical), company: normalizeKey(group.canonical.company), title: normalizeKey(group.canonical.title) }));
   if (!candidates.length) return { discovered: normalizedJobs.length, added: 0, duplicates: 0 };
 
-  const known = await db.select({ id: jobs.id, canonicalUrl: jobs.canonicalUrl, contentHash: jobs.contentHash, company: sql<string>`lower(${jobs.company})`, title: sql<string>`lower(${jobs.title})` }).from(jobs).where(or(
+  // Same normalization as normalizeKey, so "CFD Engineer - AI Trainer" matches its own stored row.
+  const normalizedCompany = sql<string>`trim(regexp_replace(lower(${jobs.company}), '[^a-z0-9]+', ' ', 'g'))`;
+  const normalizedTitle = sql<string>`trim(regexp_replace(lower(${jobs.title}), '[^a-z0-9]+', ' ', 'g'))`;
+  const known = await db.select({ id: jobs.id, canonicalUrl: jobs.canonicalUrl, contentHash: jobs.contentHash, company: normalizedCompany, title: normalizedTitle }).from(jobs).where(or(
     inArray(jobs.canonicalUrl, candidates.map((item) => item.raw.url)),
     inArray(jobs.contentHash, candidates.map((item) => item.hash)),
-    sql`(lower(${jobs.company}), lower(${jobs.title})) in (${sql.join(candidates.map((item) => sql`(${item.company}, ${item.title})`), sql`, `)})`,
+    sql`(${normalizedCompany}, ${normalizedTitle}) in (${sql.join(candidates.map((item) => sql`(${item.company}, ${item.title})`), sql`, `)})`,
   ));
   const byUrl = new Map(known.map((row) => [row.canonicalUrl, row.id]));
   const byHash = new Map(known.map((row) => [row.contentHash, row.id]));

@@ -37,8 +37,9 @@ The app code is ready for Clerk, but the Clerk and Google dashboards still need 
    | --- | --- | --- | --- |
    | AI analysis | `ai_analysis` | Off | On |
    | Email alerts | `email_alerts` | Off | On |
+   | Fetch all sources on demand | `source_refresh` | Off | On |
 
-4. Create a recurring user-level Pro plan, attach both features, and set the price/cadence you want. Product pricing is intentionally a dashboard setting; the app reads Pro entitlement from Clerk rather than hard-coding an amount.
+4. Create a recurring user-level Pro plan, attach all three features, and set the price/cadence you want. Product pricing is intentionally a dashboard setting; the app reads Pro entitlement from Clerk rather than hard-coding an amount.
 5. The `/billing` page renders Clerk's pricing table. Verify it shows Free and Pro after Billing is configured.
 
 ## 4. Webhook synchronization for scheduled tasks

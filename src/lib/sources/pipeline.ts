@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, max } from "drizzle-orm";
 import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
 import { getScoringProfile, persistJobs } from "@/lib/repository/jobs";
@@ -42,7 +42,8 @@ export async function runSourcesIndependently(sources: JobSource[], process: (so
   return results;
 }
 
-export async function runFetchPipeline(sources: JobSource[]) {
+// `analyze: false` skips the scheduled AI pre-analysis (manual runs must not spend AI budget for every Pro user).
+export async function runFetchPipeline(sources: JobSource[], { analyze = true }: { analyze?: boolean } = {}) {
   const enabled = sources.filter((source) => source.enabled && source.available);
   const profile = await getScoringProfile();
   if (db) for (const source of sources) {
@@ -60,7 +61,19 @@ export async function runFetchPipeline(sources: JobSource[]) {
   if (db) for (const run of runs.filter((item) => !item.ok)) {
     await db.update(sourceHealth).set({ status: "error", lastCompletedAt: new Date(), durationMs: run.durationMs, lastError: run.error }).where(eq(sourceHealth.source, run.source));
   }
-  const aiAnalyzed = await analyzeRelevantJobs();
+  const aiAnalyzed = analyze ? await analyzeRelevantJobs() : 0;
   if (aiAnalyzed) console.info(JSON.stringify({ event: "ai.analysis_completed", analyzed: aiAnalyzed }));
   return runs;
+}
+
+// Most recent start of any source fetch (scheduled or manual); rate-limits manual "fetch all" runs.
+export async function lastFetchStartedAt() {
+  if (!db) return null;
+  const [row] = await db.select({ value: max(sourceHealth.lastStartedAt) }).from(sourceHealth);
+  return row?.value ?? null;
+}
+
+export function manualFetchCooldownMs() {
+  const minutes = Number(process.env.MANUAL_FETCH_COOLDOWN_MINUTES?.trim() || 15);
+  return (Number.isFinite(minutes) && minutes >= 0 ? minutes : 15) * 60_000;
 }
