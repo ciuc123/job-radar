@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 import { ArrowUpRight, BriefcaseBusiness, Check, CircleCheck, Flame, Search } from "lucide-react";
 import type { DashboardJob } from "@/lib/repository/jobs";
 import { updateJobAction } from "@/app/actions";
@@ -19,13 +19,24 @@ function locationLabel(value: string) {
   }
   return label;
 }
+const numberFormat = new Intl.NumberFormat();
+const foundFormat = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+const PAGE_SIZE = 30;
 const salaryLabel = (job: DashboardJob) => {
   if (job.salaryMin == null && job.salaryMax == null) return "Salary not listed";
   const currency = job.salaryCurrency === "EUR" ? "€" : job.salaryCurrency ?? "";
-  const fmt = (n?: number) => n == null ? "" : new Intl.NumberFormat().format(n);
+  const fmt = (n?: number) => n == null ? "" : numberFormat.format(n);
   const range = job.salaryMin != null && job.salaryMax != null ? `${currency}${fmt(job.salaryMin)}–${currency}${fmt(job.salaryMax)}` : `${currency}${fmt(job.salaryMin ?? job.salaryMax)}`;
   return `${range}${job.salaryPeriod === "hourly" ? "/h" : job.salaryPeriod === "annual" ? "/yr" : job.salaryPeriod === "monthly" ? "/mo" : ""}`;
 };
+
+const JobCard = memo(function JobCard({ job, databaseEnabled }: { job: DashboardJob; databaseEnabled: boolean }) {
+  return <article className="job-card">
+        <div className={`score-badge ${scoreClass(job.score)}`}><strong>{job.score}</strong><small>{job.recommendation === "APPLY" ? "STRONG" : job.recommendation === "REVIEW" ? "REVIEW" : job.recommendation === "MAYBE" ? "PIPELINE" : "FIT"}</small></div>
+        <div className="job-main"><div className="job-title-line"><Link href={`/jobs/${job.id}`} prefetch={false} className="job-title">{job.title}</Link><span className={`recommendation recommendation-${job.recommendation.toLowerCase()}`}>{recommendationLabel(job.recommendation)}</span></div><p className="company-line">{job.company}<span>·</span>{job.location || job.remoteType}<span>·</span>{salaryLabel(job)}</p><div className="tech-tags">{job.technologies.slice(0, 7).map((technology) => <span key={technology}>{technology}</span>)}</div><div className="job-meta"><span>{job.sources.map((item) => item.source).join(" · ")} · Found {foundFormat.format(new Date(job.discoveredAt))}</span><div className="quick-actions"><a href={job.sources[0]?.url ?? job.url} target="_blank" rel="noreferrer">Apply <ArrowUpRight size={12}/></a>{databaseEnabled && <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><input type="hidden" name="status" value="REJECTED"/><button type="submit">Reject</button></form>}</div></div></div>
+        <Link href={`/jobs/${job.id}`} prefetch={false} className="card-arrow" aria-label={`View ${job.title}`}><ArrowUpRight size={19}/></Link>
+      </article>;
+});
 
 export function JobDashboard({ jobs, locations: databaseLocations, userName, isAdmin, isLoggedIn, databaseEnabled, now }: { jobs: DashboardJob[]; locations: string[]; userName: string; isAdmin: boolean; isLoggedIn: boolean; databaseEnabled: boolean; now: string }) {
   const [query, setQuery] = useState("");
@@ -91,10 +102,16 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
   }).sort((a, b) => b.score - a.score),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [jobs, now, minimumScore, query, recommendation, source, status, company, technology, seniority, location, employment, discovered, salaryFloor]);
-  const sources = [...new Set(jobs.flatMap((job) => job.sources.map((item) => item.source)))];
-  const companies = [...new Set(jobs.map((job) => job.company))].sort();
-  const technologies = [...new Set(jobs.flatMap((job) => job.technologies))].sort();
-  const locations = [...new Set((databaseLocations.length ? databaseLocations : jobs.map((job) => job.location)).map(locationLabel).filter(Boolean))].sort();
+  const { sources, companies, technologies, locations } = useMemo(() => ({
+    sources: [...new Set(jobs.flatMap((job) => job.sources.map((item) => item.source)))],
+    companies: [...new Set(jobs.map((job) => job.company))].sort(),
+    technologies: [...new Set(jobs.flatMap((job) => job.technologies))].sort(),
+    locations: [...new Set((databaseLocations.length ? databaseLocations : jobs.map((job) => job.location)).map(locationLabel).filter(Boolean))].sort(),
+  }), [jobs, databaseLocations]);
+  // Render a page at a time; the page size resets whenever the filtered result changes.
+  const [shown, setShown] = useState<{ list: DashboardJob[]; n: number }>({ list: filtered, n: PAGE_SIZE });
+  const visibleCount = shown.list === filtered ? shown.n : PAGE_SIZE;
+  const visible = useDeferredValue(useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]));
 
    return <main className="app-shell">
      <SiteHeader userName={userName} isAdmin={isAdmin} isLoggedIn={isLoggedIn} />
@@ -127,11 +144,8 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
         <select value={discovered} onChange={(event) => manual(setDiscovered)(event.target.value)} aria-label="Date discovered"><option value="ALL">Any date</option><option value="TODAY">Discovered today</option><option value="WEEK">Last 7 days</option></select>
         <select value={status} onChange={(event) => manual(setStatus)(event.target.value)} aria-label="Status"><option value="OPEN">Open jobs</option><option value="ALL">All statuses</option><option value="PROGRESS">Applied · interview · offer</option><option value="SAVED">Saved</option><option value="APPLIED">Applied</option><option value="INTERVIEW">Interview</option><option value="OFFER">Offer</option><option value="REJECTED">Rejected</option></select>
       </div>
-      <div className="job-list">{filtered.length ? filtered.map((job) => <article className="job-card" key={job.id}>
-        <div className={`score-badge ${scoreClass(job.score)}`}><strong>{job.score}</strong><small>{job.recommendation === "APPLY" ? "STRONG" : job.recommendation === "REVIEW" ? "REVIEW" : job.recommendation === "MAYBE" ? "PIPELINE" : "FIT"}</small></div>
-        <div className="job-main"><div className="job-title-line"><Link href={`/jobs/${job.id}`} className="job-title">{job.title}</Link><span className={`recommendation recommendation-${job.recommendation.toLowerCase()}`}>{recommendationLabel(job.recommendation)}</span></div><p className="company-line">{job.company}<span>·</span>{job.location || job.remoteType}<span>·</span>{salaryLabel(job)}</p><div className="tech-tags">{job.technologies.slice(0, 7).map((technology) => <span key={technology}>{technology}</span>)}</div><div className="job-meta"><span>{job.sources.map((item) => item.source).join(" · ")} · Found {new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(job.discoveredAt))}</span><div className="quick-actions"><a href={job.sources[0]?.url ?? job.url} target="_blank" rel="noreferrer">Apply <ArrowUpRight size={12}/></a>{databaseEnabled && <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><input type="hidden" name="status" value="REJECTED"/><button type="submit">Reject</button></form>}</div></div></div>
-        <Link href={`/jobs/${job.id}`} className="card-arrow" aria-label={`View ${job.title}`}><ArrowUpRight size={19}/></Link>
-      </article>) : <div className="empty-state"><h3>No jobs match those filters.</h3><p>Try lowering the score cutoff or changing your search.</p></div>}</div>
+      <div className="job-list">{filtered.length ? visible.map((job) => <JobCard key={job.id} job={job} databaseEnabled={databaseEnabled}/>) : <div className="empty-state"><h3>No jobs match those filters.</h3><p>Try lowering the score cutoff or changing your search.</p></div>}</div>
+      {filtered.length > visibleCount && <button type="button" className="show-more" onClick={() => setShown({ list: filtered, n: visibleCount + PAGE_SIZE })}>Show more ({filtered.length - visibleCount} remaining)</button>}
       <p className="attribution">Job data is sourced from the listed boards. {sources.includes("himalayas") && <>Himalayas listings are attributed to <a href="https://himalayas.app" target="_blank" rel="noreferrer">Himalayas</a>. </>}Please verify each role on its original listing before applying.</p>
     </section>
   </main>;
