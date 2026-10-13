@@ -4,10 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 
-export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isLoggedIn }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode; isLoggedIn?: boolean }) {
+export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isLoggedIn: serverLoggedIn }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode; isLoggedIn?: boolean }) {
   const pathname = usePathname();
+  // Clerk is the source of truth for the session, so a page that doesn't pass user props still shows the account.
+  // The server-provided flag avoids a signed-out flash before Clerk loads.
+  const { isSignedIn, user } = useUser();
+  const isLoggedIn = Boolean(serverLoggedIn || isSignedIn);
+  const displayName = userName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
   // The menu remembers the path it was opened on, so navigating closes it without a state-syncing effect.
   const [openOnPath, setOpenOnPath] = useState<string | null>(null);
   const open = openOnPath === pathname;
@@ -50,6 +55,8 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
       if (!open) return;
+      // Clerk portals the account popover outside the nav; using it must not close the menu.
+      if (e.target instanceof Element && e.target.closest('[class*="cl-"]')) return;
       const path = (e.composedPath && e.composedPath()) || (e as any).path || [];
       const nav = navRef.current;
       if (nav && !path.includes(nav)) {
@@ -122,7 +129,7 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
           <Link href="/billing" className={isActive('/billing') ? 'active' : ''}>Plans</Link>
           {isAdmin && <Link href="/admin" className={isActive('/admin') ? 'active' : ''}>Admin</Link>}
           <a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request">Request / support</a>
-          {isLoggedIn && <span className="user-chip">{userName}</span>}
+          {isLoggedIn && <span className="user-chip">{displayName}</span>}
           {isLoggedIn && <UserButton />}
         </div>
 
@@ -141,9 +148,10 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
             <Link href="/billing" onClick={close} className={isActive('/billing') ? 'active' : ''}>Plans</Link>
             {isAdmin && <Link href="/admin" onClick={close}>Admin</Link>}
             <a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request" onClick={close}>Request / support</a>
-            {isLoggedIn && <div style={{paddingTop:8}}>
-              <span className="user-chip">{userName}</span>
-            </div>}
+            {isLoggedIn ? <div className="mobile-account">
+              <UserButton />
+              <span>{displayName}</span>
+            </div> : <Link href="/signin" onClick={close}>Sign in</Link>}
           </div>
         </div>
       </nav>
