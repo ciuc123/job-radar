@@ -10,23 +10,25 @@ Companion to [`AI_MVP_PLAN.md`](AI_MVP_PLAN.md). Tick items as you go. Console p
 
 ## 2. Local
 - [x] In the worktree's `.env` (or `.env.local`) set `AI_ANALYSIS_ENABLED=true`, `ANTHROPIC_API_KEY=<dev key>` and `AI_MODEL=claude-opus-5-5`. Env files are git-ignored, so each worktree needs its own copy.
-- [ ] Point `DATABASE_URL` at a **Neon** database. `src/db` uses the `neon-http` driver, so the local Docker Postgres does not work; create a throwaway branch at https://console.neon.tech → Branches. Then run `npm run db:migrate && npm run dev`, open http://localhost:3000, open a job and click **Analyze fit**
-- [ ] Reload the page and confirm the result is reused (no new `ai.analysis` log line)
+- [x] Point `DATABASE_URL` at a **Neon** database. `src/db` uses the `neon-http` driver, so the local Docker Postgres does not work; create a throwaway branch at https://console.neon.tech → Branches. Then run `npm run db:migrate && npm run dev`, open http://localhost:3000, open a job and click **Analyze fit**
+- [x] Reload the page and confirm the result is reused (no new `ai.analysis` log line)
 - [x] Run `npm run ai:eval`: 15/15 on `claude-opus-5-5`, $0.19 total (2026-10-13)
 - [ ] Optional: run `AI_MODEL=claude-haiku-5-5 npm run ai:eval` and compare agreement and cost
 - [ ] Check spend: https://platform.claude.com/usage
 
 ## 3. Clerk
-- [ ] Confirm the Pro plan includes the feature `ai_analysis` (Billing → Plans): https://dashboard.clerk.com
+- [x] Confirm the Pro plan includes the feature `ai_analysis` (Billing → Plans): https://dashboard.clerk.com
 
 ## 4. Database (before deploying, or the job page breaks)
 - [ ] Run `npm run db:migrate` against the Preview `DATABASE_URL`: https://console.neon.tech
 - [ ] Run `npm run db:migrate` against the Production `DATABASE_URL`
 
 ## 5. Vercel: Project → Settings → Environment Variables (https://vercel.com/dashboard)
-- [ ] `ANTHROPIC_API_KEY`: the dev key for **Preview**, the prod key for **Production**
-- [ ] `AI_ANALYSIS_ENABLED=true`, `AI_MODEL=claude-opus-5-5`, `AI_DAILY_LIMIT=20` (Preview and Production)
-- [ ] Delete `AI_BASE_URL` and `AI_API_KEY` if present
+- [x] `ANTHROPIC_API_KEY`: the dev key for **Preview**, the prod key for **Production**
+- [x] `AI_ANALYSIS_ENABLED=true`, `AI_MODEL=claude-opus-5-5` (Development)
+- [x] `AI_ANALYSIS_ENABLED=true`, `AI_MODEL=claude-opus-5-5`, `AI_DAILY_LIMIT=20` (Preview)
+- [x] `AI_ANALYSIS_ENABLED=true`, `AI_MODEL=claude-opus-5-5`, `AI_DAILY_LIMIT=20` (Production)
+- [x] Delete `AI_BASE_URL` and `AI_API_KEY` if present
 
 ## 6. GitHub Actions: https://github.com/ciuc123/job-radar/settings/secrets/actions
 - [ ] Add `ANTHROPIC_API_KEY` (prod key) and set `AI_ANALYSIS_ENABLED=true`
