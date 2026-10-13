@@ -7,6 +7,10 @@ import { eq } from "drizzle-orm";
 import { getScoringProfile, rescoreJobs, saveProfile, updateJobApplication } from "@/lib/repository/jobs";
 import type { JobStatus } from "@/lib/types";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { analyzeJobForUser } from "@/lib/ai/analyzer";
+import { lastFetchStartedAt, manualFetchCooldownMs, runFetchPipeline } from "@/lib/sources/pipeline";
+import { sourceRegistry } from "@/lib/sources/registry";
 
 export async function updateJobAction(formData: FormData) {
   const { id: userId } = await requireAppUser();
@@ -48,7 +52,7 @@ export async function saveProfileAction(formData: FormData) {
     salaryMinimum,
     thresholds, scoreWeights,
   });
-  await rescoreJobs(await getScoringProfile(userId));
+  await rescoreJobs(await getScoringProfile(userId), userId);
   redirect("/settings?updated=1");
 }
 
@@ -72,4 +76,38 @@ export async function saveNotificationSettingsAction(formData: FormData) {
   if ((values.dailyDigestEnabled || values.immediateEnabled) && !(await hasPaidFeature("email_alerts"))) throw new Error("Email alerts require the Pro plan");
   await db.update(notificationSettings).set(values).where(eq(notificationSettings.userId, userId));
   redirect("/settings?notifications=updated");
+}
+
+export type AnalyzeJobState = { error?: string };
+
+export async function analyzeJobAction(_state: AnalyzeJobState, formData: FormData): Promise<AnalyzeJobState> {
+  const { id: userId } = await requireAppUser();
+  const jobId = String(formData.get("jobId") ?? "");
+  if (!jobId || jobId.startsWith("demo-")) return { error: "This job can't be analyzed." };
+  if (!(await hasPaidFeature("ai_analysis"))) return { error: "AI analysis requires the Pro plan." };
+  const result = await analyzeJobForUser(userId, jobId);
+  if (result.status === "error") return { error: result.error };
+  revalidatePath(`/jobs/${jobId}`);
+  return {};
+}
+
+export type FetchAllState = { error?: string; summary?: string };
+
+// Pro: run every enabled source now instead of waiting for the twice-daily schedule. The job corpus is shared,
+// so a cooldown (any user, or the scheduled run) protects the upstream feeds and the database.
+export async function fetchAllSourcesAction(_state: FetchAllState, _formData: FormData): Promise<FetchAllState> {
+  const { id: userId } = await requireAppUser();
+  if (!db) return { error: "Demo mode is read-only." };
+  if (!(await hasPaidFeature("source_refresh"))) return { error: "Fetching all sources on demand requires the Pro plan." };
+  const lastStarted = await lastFetchStartedAt();
+  const waitMs = lastStarted ? lastStarted.getTime() + manualFetchCooldownMs() - Date.now() : 0;
+  if (waitMs > 0) return { error: `Sources were fetched recently. Try again in ${Math.ceil(waitMs / 60_000)} min.` };
+  const started = Date.now();
+  const runs = await runFetchPipeline(sourceRegistry, { analyze: false });
+  const failed = runs.filter((run) => !run.ok);
+  const added = runs.reduce((total, run) => total + run.added, 0);
+  console.info(JSON.stringify({ event: "fetch.manual_completed", userId, sources: runs.length, failed: failed.length, added, durationMs: Date.now() - started }));
+  revalidatePath("/sources");
+  revalidatePath("/");
+  return { summary: `Fetched ${runs.length - failed.length}/${runs.length} sources · ${added} new job${added === 1 ? "" : "s"}${failed.length ? ` · failed: ${failed.map((run) => run.source).join(", ")}` : ""}.` };
 }

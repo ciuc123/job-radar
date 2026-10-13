@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, max } from "drizzle-orm";
 import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
-import { getScoringProfile, persistJobs } from "@/lib/repository/jobs";
+import { getScoringProfile, getSearchTerms, persistJobs } from "@/lib/repository/jobs";
 import type { JobSource } from "@/lib/sources/job-source";
 import { analyzeRelevantJobs } from "@/lib/ai/analyzer";
 
@@ -42,25 +42,41 @@ export async function runSourcesIndependently(sources: JobSource[], process: (so
   return results;
 }
 
-export async function runFetchPipeline(sources: JobSource[]) {
+// `analyze: false` skips the scheduled AI pre-analysis (manual runs must not spend AI budget for every Pro user).
+export async function runFetchPipeline(sources: JobSource[], { analyze = true }: { analyze?: boolean } = {}) {
   const enabled = sources.filter((source) => source.enabled && source.available);
   const profile = await getScoringProfile();
   if (db) for (const source of sources) {
     await db.insert(sourceHealth).values({ source: source.id, enabled: source.enabled, available: source.available, status: source.available ? "idle" : "unavailable", lastError: source.unavailableReason ?? null })
       .onConflictDoUpdate({ target: sourceHealth.source, set: { enabled: source.enabled, available: source.available, status: source.available ? "idle" : "unavailable", lastError: source.unavailableReason ?? null } });
   }
+  const savedState = new Map(db ? (await db.select({ source: sourceHealth.source, state: sourceHealth.state }).from(sourceHealth)).map((row) => [row.source, row.state]) : []);
+  const searchTerms = await getSearchTerms();
   const runs = await runSourcesIndependently(enabled, async (source) => {
     const startedAt = new Date();
     if (db) await db.update(sourceHealth).set({ status: "running", lastStartedAt: startedAt, lastError: null }).where(eq(sourceHealth.source, source.id));
-    const result = await source.fetch();
+    const result = await source.fetch({ state: savedState.get(source.id) ?? undefined, searchTerms });
     const metrics = await persistJobs(source.id, result.jobs, profile);
-    if (db) await db.update(sourceHealth).set({ status: "healthy", lastCompletedAt: new Date(), discovered: metrics.discovered, added: metrics.added, duplicates: metrics.duplicates, durationMs: Date.now() - startedAt.getTime(), lastError: null }).where(eq(sourceHealth.source, source.id));
+    // State only advances after the jobs are saved, so a failed persist re-fetches the same window next run.
+    if (db) await db.update(sourceHealth).set({ status: "healthy", lastCompletedAt: new Date(), discovered: metrics.discovered, added: metrics.added, duplicates: metrics.duplicates, durationMs: Date.now() - startedAt.getTime(), lastError: null, ...(result.state !== undefined ? { state: result.state } : {}) }).where(eq(sourceHealth.source, source.id));
     return metrics;
   });
   if (db) for (const run of runs.filter((item) => !item.ok)) {
     await db.update(sourceHealth).set({ status: "error", lastCompletedAt: new Date(), durationMs: run.durationMs, lastError: run.error }).where(eq(sourceHealth.source, run.source));
   }
-  const aiAnalyzed = await analyzeRelevantJobs();
+  const aiAnalyzed = analyze ? await analyzeRelevantJobs() : 0;
   if (aiAnalyzed) console.info(JSON.stringify({ event: "ai.analysis_completed", analyzed: aiAnalyzed }));
   return runs;
+}
+
+// Most recent start of any source fetch (scheduled or manual); rate-limits manual "fetch all" runs.
+export async function lastFetchStartedAt() {
+  if (!db) return null;
+  const [row] = await db.select({ value: max(sourceHealth.lastStartedAt) }).from(sourceHealth);
+  return row?.value ?? null;
+}
+
+export function manualFetchCooldownMs() {
+  const minutes = Number(process.env.MANUAL_FETCH_COOLDOWN_MINUTES?.trim() || 15);
+  return (Number.isFinite(minutes) && minutes >= 0 ? minutes : 15) * 60_000;
 }

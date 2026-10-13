@@ -4,19 +4,26 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 
-export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode }) {
+export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isLoggedIn: serverLoggedIn }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode; isLoggedIn?: boolean }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  // Clerk is the source of truth for the session, so a page that doesn't pass user props still shows the account.
+  // The server-provided flag avoids a signed-out flash before Clerk loads.
+  const { isSignedIn, user } = useUser();
+  const isLoggedIn = Boolean(serverLoggedIn || isSignedIn);
+  const displayName = userName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Account";
+  // The menu remembers the path it was opened on, so navigating closes it without a state-syncing effect.
+  const [openOnPath, setOpenOnPath] = useState<string | null>(null);
+  const open = openOnPath === pathname;
   const navRef = useRef<HTMLElement | null>(null);
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const burgerRef = useRef<HTMLButtonElement | null>(null);
   const lastScrollY = useRef(0);
   const [hidden, setHidden] = useState(false);
 
-  const toggle = () => setOpen((v) => !v);
-  const close = () => setOpen(false);
+  const toggle = () => setOpenOnPath((current) => (current === pathname ? null : pathname));
+  const close = () => setOpenOnPath(null);
 
   useEffect(() => {
     function updateHeight() {
@@ -36,13 +43,9 @@ export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?
     };
   }, []);
 
-  useEffect(() => { // close mobile menu on navigation
-    setOpen(false);
-  }, [pathname]);
-
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') setOpenOnPath(null);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -52,12 +55,12 @@ export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?
   useEffect(() => {
     function onPointerDown(e: PointerEvent) {
       if (!open) return;
+      // Clerk portals the account popover outside the nav; using it must not close the menu.
+      if (e.target instanceof Element && e.target.closest('[class*="cl-"]')) return;
       const path = (e.composedPath && e.composedPath()) || (e as any).path || [];
       const nav = navRef.current;
-      const target = e.target instanceof Element ? e.target : null;
-      if (target?.closest(".cl-userButtonPopoverCard, [data-clerk-element='userButtonPopoverCard']")) return;
       if (nav && !path.includes(nav)) {
-        close();
+        setOpenOnPath(null);
       }
     }
     document.addEventListener('pointerdown', onPointerDown);
@@ -83,11 +86,11 @@ export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?
         if (delta > 8 && y > 60) {
           setHidden(true);
           // when scrolling down, also close the mobile menu if open
-          if (open) setOpen(false);
+          if (open) setOpenOnPath(null);
         } else if (delta < -8) {
           // scrolling up -> show header but keep menu closed
           setHidden(false);
-          if (open) setOpen(false);
+          if (open) setOpenOnPath(null);
         }
         lastScrollY.current = y;
       });
@@ -122,11 +125,12 @@ export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?
           <Link href="/" className={isActive('/') ? 'active' : ''}>Jobs</Link>
           <Link href="/network" className={isActive('/network') ? 'active' : ''}>My network</Link>
           <Link href="/sources" className={isActive('/sources') ? 'active' : ''}>Sources</Link>
-          <Link href="/settings" className={isActive('/settings') ? 'active' : ''}><Settings2 size={16}/> Preferences</Link>
+          {isLoggedIn && <Link href="/settings" className={isActive('/settings') ? 'active' : ''}><Settings2 size={16}/> Preferences</Link>}
           <Link href="/billing" className={isActive('/billing') ? 'active' : ''}>Plans</Link>
           {isAdmin && <Link href="/admin" className={isActive('/admin') ? 'active' : ''}>Admin</Link>}
           <a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request">Request / support</a>
-          <div className="clerk-account-menu"><UserButton showName /></div>
+          {isLoggedIn && <span className="user-chip">{displayName}</span>}
+          {isLoggedIn && <UserButton />}
         </div>
 
         <div className={`mobile-dropdown hamburger-only ${open ? 'open' : ''}`} aria-hidden={!open}>
@@ -137,14 +141,17 @@ export default function SiteHeader({ isAdmin, backHref, backLabel }: { userName?
             </button>
           </div>
           <div className="mobile-list">
-            <div className="mobile-account"><UserButton showName /></div>
             <Link href="/" onClick={close} className={isActive('/') ? 'active' : ''}>Jobs</Link>
             <Link href="/network" onClick={close} className={isActive('/network') ? 'active' : ''}>My network</Link>
             <Link href="/sources" onClick={close} className={isActive('/sources') ? 'active' : ''}>Sources</Link>
-            <Link href="/settings" onClick={close} className={isActive('/settings') ? 'active' : ''}>Preferences</Link>
+            {isLoggedIn && <Link href="/settings" onClick={close} className={isActive('/settings') ? 'active' : ''}>Preferences</Link>}
             <Link href="/billing" onClick={close} className={isActive('/billing') ? 'active' : ''}>Plans</Link>
             {isAdmin && <Link href="/admin" onClick={close}>Admin</Link>}
             <a href="mailto:andrei@ciuculescu.com?subject=Job%20Radar%20request" onClick={close}>Request / support</a>
+            {isLoggedIn ? <div className="mobile-account">
+              <UserButton />
+              <span>{displayName}</span>
+            </div> : <Link href="/signin" onClick={close}>Sign in</Link>}
           </div>
         </div>
       </nav>

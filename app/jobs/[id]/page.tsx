@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Bookmark, CalendarDays, CircleDollarSign, MapPin, Sparkles } from "lucide-react";
 import SiteHeader from "@/components/site-header";
+import AnalyzeFitButton from "@/components/analyze-fit-button";
+import { isAiConfigured } from "@/lib/ai/claude";
 import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
 import { updateJobAction } from "@/app/actions";
 import { getDashboardJobs, hasDatabase } from "@/lib/repository/jobs";
@@ -14,16 +16,16 @@ export const dynamic = "force-dynamic";
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getCurrentAppUser();
-  const jobs = await getDashboardJobs(user?.id);
-  const job = jobs.find((item) => item.id === id);
+  const [job] = await getDashboardJobs(user?.id, { jobId: id, full: true });
   if (!job) notFound();
   const editable = hasDatabase();
   const applyUrl = job.sources[0]?.url ?? job.url;
   const canUseAi = await hasPaidFeature("ai_analysis");
+  const aiReady = isAiConfigured();
   const aiAnalysis = db && canUseAi && user && !id.startsWith("demo-") ? (await db.select().from(aiAnalyses).where(and(eq(aiAnalyses.jobId, id), eq(aiAnalyses.userId, user.id))).limit(1))[0] : undefined;
 
   return <main className="app-shell detail-shell">
-    <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} backHref="/" backLabel={<><ArrowLeft size={16}/> Back to shortlist</>} />
+    <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} isLoggedIn={!!user?.id} backHref="/" backLabel={<><ArrowLeft size={16}/> Back to shortlist</>} />
     <div className="detail-layout">
       <section className="detail-main">
         <div className="detail-heading"><div className={`score-badge score-large ${job.score >= 85 ? "score-hot" : job.score >= 70 ? "score-good" : job.score >= 50 ? "score-mid" : "score-low"}`}><strong>{job.score}</strong><small>FIT SCORE</small></div><div><p className="eyebrow">{job.sources.map((item) => item.source).join(" · ")}</p><h1>{job.title}</h1><p className="detail-company">{job.company}</p></div></div>
@@ -45,7 +47,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <div className="detail-section"><h2>Found on</h2><div className="source-links">{job.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={`${source.source}-${source.url}`}>{source.source} <ArrowUpRight size={14}/></a>)}</div></div>
         <div className="detail-section notes-section"><div className="section-title"><h2>Application notes</h2><span className="status-pill">{job.status}</span></div>{editable ? <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><label htmlFor="notes">Private notes</label><textarea id="notes" name="notes" defaultValue={job.notes} placeholder="What stood out? Follow-up details…"/><div className="tracker-controls"><select name="status" defaultValue={job.status}><option>NEW</option><option>SAVED</option><option>REVIEW</option><option>APPLIED</option><option>INTERVIEW</option><option>OFFER</option><option>REJECTED</option><option>WITHDRAWN</option></select><button className="button button-secondary" type="submit">Save update</button></div></form> : <p className="muted">Connect Neon to keep private notes and track this opportunity.</p>}</div>
       </section>
-      <aside className="detail-aside"><div className="aside-card"><div className="ai-icon"><Sparkles size={18}/></div><h3>AI analysis</h3><span className="status-pill">{aiAnalysis ? `${aiAnalysis.score} · ${aiAnalysis.recommendation}` : canUseAi ? "READY WHEN CONFIGURED" : "PRO FEATURE"}</span>{aiAnalysis ? <><p>{aiAnalysis.summary}</p><p><strong>Matches:</strong> {aiAnalysis.matches.join(", ") || "None listed"}</p><p><strong>Gaps:</strong> {aiAnalysis.gaps.join(", ") || "None listed"}</p><p><strong>Concerns:</strong> {aiAnalysis.concerns.join(", ") || "None found"}</p></> : <p>{canUseAi ? "Analysis is generated for strong matches when an AI-compatible endpoint is configured. Deterministic rules remain the source of the main score." : "Upgrade to Pro to unlock cached AI analysis for relevant roles."}</p>}</div><div className="aside-card"><p className="eyebrow">APPLICATION SAFETY</p><p>Job Radar never submits an application. Use the original listing to review requirements and apply yourself.</p></div></aside>
+      <aside className="detail-aside"><div className="aside-card"><div className="ai-icon"><Sparkles size={18}/></div><h3>AI fit analysis</h3><span className="status-pill">{aiAnalysis ? `${aiAnalysis.score} · ${aiAnalysis.recommendation}` : canUseAi ? (aiReady ? "ON DEMAND" : "NOT CONFIGURED") : "PRO FEATURE"}</span>{aiAnalysis ? <>
+        <p>{aiAnalysis.summary}</p>
+        <AiList title="Matches" items={aiAnalysis.matches} empty="None listed"/>
+        <AiList title="Gaps" items={aiAnalysis.gaps} empty="None listed"/>
+        <AiList title="Concerns" items={aiAnalysis.concerns} empty="None found"/>
+        {aiAnalysis.talkingPoints.length > 0 && <AiList title="Talking points" items={aiAnalysis.talkingPoints} empty=""/>}
+        <p className="ai-meta">Generated by {aiAnalysis.model ?? "AI"} · {aiAnalysis.analyzedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}. Advisory only; the rules-based score above is the ranking.</p>
+      </> : canUseAi && aiReady && editable && !job.id.startsWith("demo-") ? <><p>Get a second opinion on this listing against your profile: verdict, matches, gaps, red flags and talking points.</p><AnalyzeFitButton jobId={job.id}/></> : <p>{canUseAi ? "AI analysis is not configured on this server yet. The rules-based score remains available." : <>Upgrade to <Link href="/billing">Pro</Link> to get an AI read of each listing against your profile.</>}</p>}</div><div className="aside-card"><p className="eyebrow">APPLICATION SAFETY</p><p>Job Radar never submits an application. Use the original listing to review requirements and apply yourself.</p></div></aside>
     </div>
   </main>;
+}
+
+function AiList({ title, items, empty }: { title: string; items: string[]; empty: string }) {
+  return <div className="ai-list"><strong>{title}</strong>{items.length ? <ul>{items.map((item) => <li key={item}>{item}</li>)}</ul> : <p>{empty}</p>}</div>;
 }

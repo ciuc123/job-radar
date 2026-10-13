@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import Link from "next/link";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import "./header.css";
+import AuthBanner from "@/components/auth-banner";
 
 export const metadata: Metadata = {
   title: "Job Radar",
@@ -11,7 +13,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <ClerkProvider><html lang="en"><body>
-    <div className="auth-banner">Want to keep your progress? <Link href="/signin">Sign in</Link> to save jobs, notes and settings.</div>
+    <AuthBanner />
     {children}
+    <Analytics />
+    <SpeedInsights />
   </body></html></ClerkProvider>;
 }

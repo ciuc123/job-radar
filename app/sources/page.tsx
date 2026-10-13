@@ -1,11 +1,13 @@
-import { getCurrentAppUser } from "@/lib/app-user";
+import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
+import FetchAllButton from "@/components/fetch-all-button";
 import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
 import { sourceRegistry } from "@/lib/sources/registry";
-import Link from "next/link";
 import SiteHeader from "@/components/site-header";
 
 export const dynamic = "force-dynamic";
+// The "Fetch all sources" server action runs every source in-request.
+export const maxDuration = 300;
 
 function SourceCard({ source, health }: {
   source: (typeof sourceRegistry)[number];
@@ -25,7 +27,7 @@ function SourceCard({ source, health }: {
 
 export default async function SourcesPage() {
   const user = await getCurrentAppUser();
-  if (!user?.id) return <main className="page-shell"><Link className="button button-primary" href="/signin">Sign in</Link></main>;
+  const canFetch = Boolean(db) && await hasPaidFeature("source_refresh");
 
   const rows = db ? await db.select().from(sourceHealth) : [];
   const health = new Map(rows.map((row) => [row.source, row]));
@@ -34,11 +36,12 @@ export default async function SourcesPage() {
 
   return (
     <main className="page-shell">
-      <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} />
+      <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} isLoggedIn={!!user?.id} />
       <section className="page-heading">
         <p className="eyebrow">OPERATIONS</p>
         <h1>Source health</h1>
         <p>Each active source is fetched independently. A source failure does not stop the others.</p>
+        <FetchAllButton canFetch={canFetch} isLoggedIn={!!user?.id} />
       </section>
 
       <section className="network-list" aria-label="Available job sources">

@@ -1,0 +1,1 @@
+ALTER TABLE "source_health" ADD COLUMN "state" jsonb;
