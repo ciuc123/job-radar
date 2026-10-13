@@ -18,7 +18,9 @@
 ## Phase 2 — Coverage and operations
 
 - [x] Add verified We Work Remotely RSS and paginated Jobgether documented public API; show other sources only when a permitted feed is verified
-- [x] Optional AI analysis with stored results and no required paid API (OpenAI-compatible endpoint; disabled by default)
+- [x] Optional AI analysis with stored results and no required paid API (disabled by default)
+- [x] On-demand Claude fit analysis on the job page (structured output, prompt caching, per-user daily limit, usage/cost logging, `npm run ai:eval`)
+- [ ] Scheduled pre-analysis via the Message Batches API (50% cheaper) and analysis feedback (👍/👎) feeding the eval set
 - [x] Daily email digest and configurable score threshold notifications
 - [x] Scheduled source fetching through GitHub Actions, with independent source failures
 - [x] Run scheduled source fetch at 00:00 and 12:00 UTC

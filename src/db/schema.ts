@@ -167,7 +167,14 @@ export const aiAnalyses = pgTable("ai_analyses", {
   gaps: jsonb("gaps").$type<string[]>().notNull(),
   concerns: jsonb("concerns").$type<string[]>().notNull(),
   estimatedFit: varchar("estimated_fit", { length: 32 }).notNull(),
+  talkingPoints: jsonb("talking_points").$type<string[]>().notNull().default([]),
   model: text("model"),
+  promptVersion: text("prompt_version"),
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  cacheReadTokens: integer("cache_read_tokens"),
+  cacheWriteTokens: integer("cache_write_tokens"),
+  costUsdMicros: integer("cost_usd_micros"),
   analyzedAt: timestamp("analyzed_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.userId, table.jobId] })]);
 

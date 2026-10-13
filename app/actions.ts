@@ -7,6 +7,8 @@ import { eq } from "drizzle-orm";
 import { getScoringProfile, rescoreJobs, saveProfile, updateJobApplication } from "@/lib/repository/jobs";
 import type { JobStatus } from "@/lib/types";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { analyzeJobForUser } from "@/lib/ai/analyzer";
 
 export async function updateJobAction(formData: FormData) {
   const { id: userId } = await requireAppUser();
@@ -72,4 +74,17 @@ export async function saveNotificationSettingsAction(formData: FormData) {
   if ((values.dailyDigestEnabled || values.immediateEnabled) && !(await hasPaidFeature("email_alerts"))) throw new Error("Email alerts require the Pro plan");
   await db.update(notificationSettings).set(values).where(eq(notificationSettings.userId, userId));
   redirect("/settings?notifications=updated");
+}
+
+export type AnalyzeJobState = { error?: string };
+
+export async function analyzeJobAction(_state: AnalyzeJobState, formData: FormData): Promise<AnalyzeJobState> {
+  const { id: userId } = await requireAppUser();
+  const jobId = String(formData.get("jobId") ?? "");
+  if (!jobId || jobId.startsWith("demo-")) return { error: "This job can't be analyzed." };
+  if (!(await hasPaidFeature("ai_analysis"))) return { error: "AI analysis requires the Pro plan." };
+  const result = await analyzeJobForUser(userId, jobId);
+  if (result.status === "error") return { error: result.error };
+  revalidatePath(`/jobs/${jobId}`);
+  return {};
 }
