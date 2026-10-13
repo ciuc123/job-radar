@@ -1,13 +1,16 @@
 import type { NormalizedJob } from "@/lib/types";
 
-export type SourceFetchResult = { jobs: NormalizedJob[]; source: string };
+// `state` is what the source returned last time (persisted in source_health.state), so a source can resume
+// from where the previous run stopped. `searchTerms` come from users' profiles for sources that support search.
+export type SourceContext = { state?: unknown; searchTerms: string[] };
+export type SourceFetchResult = { jobs: NormalizedJob[]; source: string; state?: unknown };
 export type JobSource = {
   id: string;
   name: string;
   enabled: boolean;
   available: boolean;
   unavailableReason?: string;
-  fetch(): Promise<SourceFetchResult>;
+  fetch(context?: SourceContext): Promise<SourceFetchResult>;
 };
 
 export class SourceFetchError extends Error {

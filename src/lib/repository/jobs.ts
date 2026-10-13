@@ -29,6 +29,22 @@ export const sampleJobs: DashboardJob[] = deduplicateJobs(realisticJobs).map((gr
   };
 });
 
+const SEARCH_TERMS_PER_PROFILE = 3;
+const MAX_SEARCH_TERMS = 8;
+
+// Keywords for search-capable sources: each user's first few strong skills (listed most important first),
+// de-duplicated case-insensitively across users. Falls back to the default profile.
+export async function getSearchTerms(): Promise<string[]> {
+  const rows = db ? await db.select({ strongSkills: candidateProfiles.strongSkills }).from(candidateProfiles) : [];
+  const lists = rows.length ? rows.map((row) => row.strongSkills) : [defaultProfile.strongSkills];
+  const terms = new Map<string, string>();
+  for (const list of lists) for (const skill of list.slice(0, SEARCH_TERMS_PER_PROFILE)) {
+    const term = skill.trim();
+    if (term && !terms.has(term.toLowerCase())) terms.set(term.toLowerCase(), term);
+  }
+  return [...terms.values()].slice(0, MAX_SEARCH_TERMS);
+}
+
 export async function getScoringProfile(userId?: string): Promise<ScoringProfile> {
   if (!db) return defaultProfile;
   const rows = userId

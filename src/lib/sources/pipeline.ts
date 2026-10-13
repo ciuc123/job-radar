@@ -1,7 +1,7 @@
 import { eq, max } from "drizzle-orm";
 import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
-import { getScoringProfile, persistJobs } from "@/lib/repository/jobs";
+import { getScoringProfile, getSearchTerms, persistJobs } from "@/lib/repository/jobs";
 import type { JobSource } from "@/lib/sources/job-source";
 import { analyzeRelevantJobs } from "@/lib/ai/analyzer";
 
@@ -50,12 +50,15 @@ export async function runFetchPipeline(sources: JobSource[], { analyze = true }:
     await db.insert(sourceHealth).values({ source: source.id, enabled: source.enabled, available: source.available, status: source.available ? "idle" : "unavailable", lastError: source.unavailableReason ?? null })
       .onConflictDoUpdate({ target: sourceHealth.source, set: { enabled: source.enabled, available: source.available, status: source.available ? "idle" : "unavailable", lastError: source.unavailableReason ?? null } });
   }
+  const savedState = new Map(db ? (await db.select({ source: sourceHealth.source, state: sourceHealth.state }).from(sourceHealth)).map((row) => [row.source, row.state]) : []);
+  const searchTerms = await getSearchTerms();
   const runs = await runSourcesIndependently(enabled, async (source) => {
     const startedAt = new Date();
     if (db) await db.update(sourceHealth).set({ status: "running", lastStartedAt: startedAt, lastError: null }).where(eq(sourceHealth.source, source.id));
-    const result = await source.fetch();
+    const result = await source.fetch({ state: savedState.get(source.id) ?? undefined, searchTerms });
     const metrics = await persistJobs(source.id, result.jobs, profile);
-    if (db) await db.update(sourceHealth).set({ status: "healthy", lastCompletedAt: new Date(), discovered: metrics.discovered, added: metrics.added, duplicates: metrics.duplicates, durationMs: Date.now() - startedAt.getTime(), lastError: null }).where(eq(sourceHealth.source, source.id));
+    // State only advances after the jobs are saved, so a failed persist re-fetches the same window next run.
+    if (db) await db.update(sourceHealth).set({ status: "healthy", lastCompletedAt: new Date(), discovered: metrics.discovered, added: metrics.added, duplicates: metrics.duplicates, durationMs: Date.now() - startedAt.getTime(), lastError: null, ...(result.state !== undefined ? { state: result.state } : {}) }).where(eq(sourceHealth.source, source.id));
     return metrics;
   });
   if (db) for (const run of runs.filter((item) => !item.ok)) {

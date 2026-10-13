@@ -78,21 +78,60 @@ test("maps Jobgether documented public API results", () => {
   assert.equal(result?.contractType[0], "Freelance");
 });
 
-test("paginates Himalayas until its safety cap and stops on a repeated cursor", async () => {
+const himalayasItem = (id: string, pubDate: number) => ({ title: `Senior PHP ${id}`, companyName: "Acme", applicationLink: `https://himalayas.app/jobs/${id}`, guid: id, pubDate });
+
+async function withHimalayasApi(handler: (url: URL) => Response, run: (requests: URL[]) => Promise<void>) {
   const originalFetch = globalThis.fetch;
-  const requestedCursors: string[] = [];
+  const originalDelay = process.env.HIMALAYAS_REQUEST_DELAY_MS;
+  process.env.HIMALAYAS_REQUEST_DELAY_MS = "0";
+  const requests: URL[] = [];
   globalThis.fetch = async (input) => {
     const url = new URL(String(input));
-    requestedCursors.push(url.searchParams.get("cursor") ?? "first");
-    const cursor = url.searchParams.get("cursor");
-    return Response.json({ jobs: [], nextCursor: cursor ? "repeat" : "repeat" });
+    requests.push(url);
+    return handler(url);
   };
-  try {
-    await himalayasSource.fetch();
-    assert.deepEqual(requestedCursors, ["first", "repeat"]);
-  } finally {
+  try { await run(requests); } finally {
     globalThis.fetch = originalFetch;
+    if (originalDelay === undefined) delete process.env.HIMALAYAS_REQUEST_DELAY_MS; else process.env.HIMALAYAS_REQUEST_DELAY_MS = originalDelay;
   }
+}
+
+test("Himalayas searches each profile term recent-first and records a watermark per term", async () => {
+  await withHimalayasApi((url) => {
+    const page = Number(url.searchParams.get("page"));
+    const term = url.searchParams.get("q");
+    const base = term === "Laravel" ? 2_000 : 1_000;
+    return Response.json({ totalCount: 30, jobs: page === 1 ? Array.from({ length: 20 }, (_, i) => himalayasItem(`${term}-${i}`, base - i)) : Array.from({ length: 10 }, (_, i) => himalayasItem(`${term}-p2-${i}`, base - 20 - i)) });
+  }, async (requests) => {
+    const result = await himalayasSource.fetch({ searchTerms: ["PHP", "Laravel", "php"] });
+    assert.deepEqual(requests.map((url) => `${url.pathname}?q=${url.searchParams.get("q")}&sort=${url.searchParams.get("sort")}&page=${url.searchParams.get("page")}`), [
+      "/jobs/api/search?q=PHP&sort=recent&page=1", "/jobs/api/search?q=PHP&sort=recent&page=2",
+      "/jobs/api/search?q=Laravel&sort=recent&page=1", "/jobs/api/search?q=Laravel&sort=recent&page=2",
+    ]);
+    assert.equal(result.jobs.length, 60);
+    assert.deepEqual(result.state, { watermarks: { php: 1_000, laravel: 2_000 } });
+  });
+});
+
+test("Himalayas stops at the previous watermark and ignores an older pinned posting on page 1", async () => {
+  await withHimalayasApi(() => Response.json({ totalCount: 500, jobs: [himalayasItem("pinned", 100), himalayasItem("new-1", 1_010), himalayasItem("new-2", 1_005), himalayasItem("seen", 1_000), himalayasItem("old", 990)] }), async (requests) => {
+    const result = await himalayasSource.fetch({ searchTerms: ["PHP"], state: { watermarks: { php: 1_000 } } });
+    assert.equal(requests.length, 1);
+    assert.deepEqual(result.jobs.map((job) => job.sourceJobId), ["new-1", "new-2"]);
+    assert.deepEqual(result.state, { watermarks: { php: 1_010 } });
+  });
+});
+
+test("Himalayas keeps results and old watermarks when rate limited mid-run", async () => {
+  await withHimalayasApi((url) => url.searchParams.get("q") === "PHP" ? Response.json({ totalCount: 1, jobs: [himalayasItem("a", 1_500)] }) : new Response("slow down", { status: 429 }), async () => {
+    const result = await himalayasSource.fetch({ searchTerms: ["PHP", "Laravel"], state: { watermarks: { php: 1_000, laravel: 2_000 } } });
+    assert.equal(result.jobs.length, 1);
+    assert.deepEqual(result.state, { watermarks: { php: 1_500, laravel: 2_000 } });
+  });
+});
+
+test("Himalayas pubDate in epoch seconds maps to the right posting date", () => {
+  assert.equal(mapHimalayasJob(himalayasItem("a", 1_791_909_486))?.postedAt, "2026-10-13T16:38:06.000Z");
 });
 
 test("Jobgether searches PHP and Laravel independently and paginates when more results exist", async () => {

@@ -155,6 +155,7 @@ export const sourceHealth = pgTable("source_health", {
   duplicates: integer("duplicates").notNull().default(0),
   durationMs: integer("duration_ms"),
   lastError: text("last_error"),
+  state: jsonb("state"),
 });
 
 export const aiAnalyses = pgTable("ai_analyses", {
