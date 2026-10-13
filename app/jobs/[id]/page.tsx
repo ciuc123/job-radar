@@ -16,8 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getCurrentAppUser();
-  const jobs = await getDashboardJobs(user?.id);
-  const job = jobs.find((item) => item.id === id);
+  const [job] = await getDashboardJobs(user?.id, { jobId: id, full: true });
   if (!job) notFound();
   const editable = hasDatabase();
   const applyUrl = job.sources[0]?.url ?? job.url;

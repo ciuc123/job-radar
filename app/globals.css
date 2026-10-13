@@ -27,3 +27,6 @@ button.stat-card:focus-visible{outline:2px solid var(--green);outline-offset:2px
 .active-filter button{margin-left:auto;background:none;border:0;color:var(--green);font:inherit;font-weight:600;text-decoration:underline;cursor:pointer;padding:4px}
 @media(max-width:820px){.stats-grid .stat-card:last-child:nth-child(odd){grid-column:1/-1}}
 .ai-list{margin-top:10px}.ai-list strong{font-size:10px;color:#4e5c54}.ai-list ul{margin:4px 0 0;padding-left:16px;font-size:10px;line-height:1.6;color:#758078}.ai-list li+li{margin-top:3px}.ai-list p{margin-top:2px}.aside-card .ai-meta{font-size:9px;color:#9ba69f;margin-top:12px}.aside-card a{color:var(--green);font-weight:600}.analyze-fit-form{margin-top:12px}.analyze-fit-form .button{width:100%}.analyze-fit-form .button:disabled{opacity:.7;cursor:progress;transform:none}.form-error{color:#9d4848!important}
+
+.show-more{display:block;margin:14px auto 0;padding:10px 18px;border:1px solid var(--line);border-radius:8px;background:#fff;color:#3f5948;font-size:12px;font-weight:700}
+.show-more:hover{background:#f3f8f4;border-color:#b8d1bf}

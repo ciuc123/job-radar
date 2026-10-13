@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, notExists, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { applications, candidateProfiles, jobs, sourceListings, userJobScores, users } from "@/db/schema";
 import { defaultProfile } from "@/lib/profile";
@@ -61,30 +61,48 @@ export async function rescoreJobs(profile?: ScoringProfile, userId?: string) {
   return rows.length * targetUsers.length;
 }
 
-export async function getDashboardJobs(userId?: string): Promise<DashboardJob[]> {
-  if (!db) return sampleJobs;
+type DashboardOptions = { jobId?: string; full?: boolean };
+const LIST_DESCRIPTION_CHARS = 1500;
+
+// List view: descriptions are truncated and rawData is dropped so the page payload stays small.
+// Pass `full` (detail page) to get the complete row for a single `jobId`.
+export async function getDashboardJobs(userId?: string, { jobId, full = false }: DashboardOptions = {}): Promise<DashboardJob[]> {
+  if (!db) return jobId ? sampleJobs.filter((job) => job.id === jobId) : sampleJobs;
   if (!userId) return [];
   await ensureUserScores(userId);
-  const rows = await db.select({ job: jobs, application: applications, match: userJobScores })
+  const rows = await db.select({ job: jobs, application: applications, match: userJobScores, description: full ? jobs.description : sql<string>`left(${jobs.description}, ${LIST_DESCRIPTION_CHARS})` })
     .from(jobs)
     .innerJoin(userJobScores, and(eq(userJobScores.jobId, jobs.id), eq(userJobScores.userId, userId)))
     .leftJoin(applications, and(eq(applications.jobId, jobs.id), eq(applications.userId, userId)))
+    .where(jobId ? eq(jobs.id, jobId) : undefined)
     .orderBy(desc(userJobScores.score), desc(jobs.discoveredAt));
   if (!rows.length) return [];
-  const links = await db.select().from(sourceListings).orderBy(asc(sourceListings.source));
-  return rows.map(({ job, application, match }) => ({
-    source: links.find((link) => link.jobId === job.id)?.source ?? "unknown",
-    sourceJobId: undefined, url: job.canonicalUrl, title: job.title, company: job.company,
-    description: job.description, location: job.location, countries: job.countries,
-    timezoneRequirements: job.timezoneRequirements, employmentType: job.employmentType,
-    contractType: job.contractType, salaryMin: job.salaryMin ?? undefined, salaryMax: job.salaryMax ?? undefined,
-    salaryCurrency: job.salaryCurrency ?? undefined, salaryPeriod: job.salaryPeriod ?? undefined,
-    technologies: job.technologies, seniority: job.seniority, postedAt: job.postedAt?.toISOString(),
-    expiresAt: job.expiresAt?.toISOString(), remoteType: job.remoteType, rawData: job.rawData,
-    score: match.score, scoreBreakdown: match.scoreBreakdown, recommendation: match.recommendation,
-    id: job.id, discoveredAt: job.discoveredAt.toISOString(), status: application?.status ?? "NEW",
-    notes: application?.notes ?? "", sources: links.filter((link) => link.jobId === job.id).map((link) => ({ source: link.source, url: link.url })),
-  }));
+  const links = await db.select({ jobId: sourceListings.jobId, source: sourceListings.source, url: sourceListings.url }).from(sourceListings)
+    .innerJoin(userJobScores, and(eq(userJobScores.jobId, sourceListings.jobId), eq(userJobScores.userId, userId)))
+    .where(jobId ? eq(sourceListings.jobId, jobId) : undefined)
+    .orderBy(asc(sourceListings.source));
+  const linksByJob = new Map<string, Array<{ source: string; url: string }>>();
+  for (const link of links) {
+    const list = linksByJob.get(link.jobId) ?? [];
+    list.push({ source: link.source, url: link.url });
+    linksByJob.set(link.jobId, list);
+  }
+  return rows.map(({ job, application, match, description }) => {
+    const sources = linksByJob.get(job.id) ?? [];
+    return {
+      source: sources[0]?.source ?? "unknown",
+      sourceJobId: undefined, url: job.canonicalUrl, title: job.title, company: job.company,
+      description, location: job.location, countries: job.countries,
+      timezoneRequirements: job.timezoneRequirements, employmentType: job.employmentType,
+      contractType: job.contractType, salaryMin: job.salaryMin ?? undefined, salaryMax: job.salaryMax ?? undefined,
+      salaryCurrency: job.salaryCurrency ?? undefined, salaryPeriod: job.salaryPeriod ?? undefined,
+      technologies: job.technologies, seniority: job.seniority, postedAt: job.postedAt?.toISOString(),
+      expiresAt: job.expiresAt?.toISOString(), remoteType: job.remoteType, rawData: full ? job.rawData : null,
+      score: match.score, scoreBreakdown: match.scoreBreakdown, recommendation: match.recommendation,
+      id: job.id, discoveredAt: job.discoveredAt.toISOString(), status: application?.status ?? "NEW",
+      notes: application?.notes ?? "", sources,
+    };
+  });
 }
 
 export async function getJobLocations(): Promise<string[]> {
@@ -98,8 +116,8 @@ export async function getJobLocations(): Promise<string[]> {
 
 async function ensureUserScores(userId: string) {
   if (!db) return;
-  const existing = new Set((await db.select({ jobId: userJobScores.jobId }).from(userJobScores).where(eq(userJobScores.userId, userId))).map((item) => item.jobId));
-  const missing = (await db.select().from(jobs)).filter((job) => !existing.has(job.id));
+  // Only load jobs that have no score for this user yet (usually none).
+  const missing = await db.select().from(jobs).where(notExists(db.select({ one: sql`1` }).from(userJobScores).where(and(eq(userJobScores.jobId, jobs.id), eq(userJobScores.userId, userId)))));
   if (!missing.length) return;
   const profile = await getScoringProfile(userId);
   for (const job of missing) {

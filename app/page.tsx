@@ -7,7 +7,6 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const user = await getCurrentAppUser();
-  const jobs = await getDashboardJobs(user?.id);
-  const locations = await getJobLocations();
+  const [jobs, locations] = await Promise.all([getDashboardJobs(user?.id), getJobLocations()]);
   return <JobDashboard jobs={jobs} locations={locations} userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} isLoggedIn={!!user?.id} databaseEnabled={hasDatabase()} now={new Date().toISOString()} />;
 }
