@@ -27,7 +27,7 @@ const salaryLabel = (job: DashboardJob) => {
   return `${range}${job.salaryPeriod === "hourly" ? "/h" : job.salaryPeriod === "annual" ? "/yr" : job.salaryPeriod === "monthly" ? "/mo" : ""}`;
 };
 
-export function JobDashboard({ jobs, locations: databaseLocations, userName, isAdmin, databaseEnabled, now }: { jobs: DashboardJob[]; locations: string[]; userName: string; isAdmin: boolean; databaseEnabled: boolean; now: string }) {
+export function JobDashboard({ jobs, locations: databaseLocations, userName, isAdmin, isLoggedIn, databaseEnabled, now }: { jobs: DashboardJob[]; locations: string[]; userName: string; isAdmin: boolean; isLoggedIn: boolean; databaseEnabled: boolean; now: string }) {
   const [query, setQuery] = useState("");
   const [recommendation, setRecommendation] = useState("ALL");
   const [source, setSource] = useState("ALL");
@@ -67,8 +67,8 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
   const technologies = [...new Set(jobs.flatMap((job) => job.technologies))].sort();
   const locations = [...new Set((databaseLocations.length ? databaseLocations : jobs.map((job) => job.location)).map(locationLabel).filter(Boolean))].sort();
 
-  return <main className="app-shell">
-    <SiteHeader userName={userName} isAdmin={isAdmin} />
+   return <main className="app-shell">
+     <SiteHeader userName={userName} isAdmin={isAdmin} isLoggedIn={isLoggedIn} />
     <section className="hero">
       <div><p className="eyebrow">{new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date()).toUpperCase()}</p><h1>Good morning, {userName.split(" ")[0]}.</h1><p className="muted">A short list of roles that deserve a closer look.</p></div>
       <div className="hero-actions"><span className="sync-status"><i className={databaseEnabled ? "sync-ready" : ""}/>{databaseEnabled ? "Database configured" : "Demo data · connect Neon to sync jobs"}</span></div>

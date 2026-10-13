@@ -2,7 +2,6 @@ import { getCurrentAppUser } from "@/lib/app-user";
 import { db } from "@/db";
 import { sourceHealth } from "@/db/schema";
 import { sourceRegistry } from "@/lib/sources/registry";
-import Link from "next/link";
 import SiteHeader from "@/components/site-header";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +24,6 @@ function SourceCard({ source, health }: {
 
 export default async function SourcesPage() {
   const user = await getCurrentAppUser();
-  if (!user?.id) return <main className="page-shell"><Link className="button button-primary" href="/signin">Sign in</Link></main>;
 
   const rows = db ? await db.select().from(sourceHealth) : [];
   const health = new Map(rows.map((row) => [row.source, row]));
@@ -34,7 +32,7 @@ export default async function SourcesPage() {
 
   return (
     <main className="page-shell">
-      <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} />
+      <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} isLoggedIn={!!user?.id} />
       <section className="page-heading">
         <p className="eyebrow">OPERATIONS</p>
         <h1>Source health</h1>
