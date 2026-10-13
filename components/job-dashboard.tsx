@@ -43,14 +43,32 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
   const [card, setCard] = useState<string | null>(null);
   const today = new Date(now).toDateString();
   const openStatuses = ["NEW", "SAVED", "REVIEW"];
-  const cardFilters: Record<string, (job: DashboardJob) => boolean> = {
-    today: (job) => new Date(job.discoveredAt).toDateString() === today,
-    pipeline: (job) => job.scoreBreakdown["role.backend"] > 0 && openStatuses.includes(job.status),
-    review: (job) => job.recommendation === "REVIEW" && openStatuses.includes(job.status),
-    strong: (job) => job.recommendation === "APPLY" && openStatuses.includes(job.status),
-    applied: (job) => ["APPLIED", "INTERVIEW", "OFFER"].includes(job.status),
+  const progressStatuses = ["APPLIED", "INTERVIEW", "OFFER"];
+  type Preset = { recommendation: string; minimumScore: number; status: string; discovered: string };
+  const cardPresets: Record<string, Preset> = {
+    today: { recommendation: "ALL", minimumScore: 0, status: "ALL", discovered: "TODAY" },
+    pipeline: { recommendation: "ALL", minimumScore: 50, status: "OPEN", discovered: "ALL" },
+    review: { recommendation: "REVIEW", minimumScore: 0, status: "OPEN", discovered: "ALL" },
+    strong: { recommendation: "APPLY", minimumScore: 0, status: "OPEN", discovered: "ALL" },
+    applied: { recommendation: "ALL", minimumScore: 0, status: "PROGRESS", discovered: "ALL" },
   };
-  const count = (key: string) => jobs.filter(cardFilters[key]).length;
+  const matchesCore = (job: DashboardJob, f: Preset) => {
+    const statusMatches = f.status === "ALL" || (f.status === "OPEN" ? openStatuses.includes(job.status) : f.status === "PROGRESS" ? progressStatuses.includes(job.status) : job.status === f.status);
+    const age = new Date(now).getTime() - new Date(job.discoveredAt).getTime();
+    return (f.recommendation === "ALL" || job.recommendation === f.recommendation) && job.score >= f.minimumScore && statusMatches
+      && (f.discovered === "ALL" || (f.discovered === "TODAY" && new Date(job.discoveredAt).toDateString() === today) || (f.discovered === "WEEK" && age < 7 * 86_400_000));
+  };
+  const count = (key: string) => jobs.filter((job) => matchesCore(job, cardPresets[key])).length;
+  const selectCard = (key: string) => {
+    if (card === key) { setCard(null); return; }
+    const preset = cardPresets[key];
+    setCard(key);
+    setRecommendation(preset.recommendation);
+    setMinimumScore(preset.minimumScore);
+    setStatus(preset.status);
+    setDiscovered(preset.discovered);
+  };
+  const manual = <T,>(setter: (value: T) => void) => (value: T) => { setCard(null); setter(value); };
   const statCards = [
     { key: "today", label: "New today", note: "across your sources", icon: null },
     { key: "pipeline", label: "In your pipeline", note: "backend roles", icon: <BriefcaseBusiness size={14}/> },
@@ -61,19 +79,18 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
   const activeCard = statCards.find((item) => item.key === card);
   const filtered = useMemo(() => jobs.filter((job) => {
     const haystack = `${job.title} ${job.company} ${job.description} ${job.technologies.join(" ")}`.toLowerCase();
-    const age = new Date(now).getTime() - new Date(job.discoveredAt).getTime();
-    const statusMatches = status === "ALL" || (status === "OPEN" ? ["NEW", "SAVED", "REVIEW"].includes(job.status) : job.status === status);
     return (!query || haystack.includes(query.toLowerCase()))
-      && (card ? cardFilters[card](job) : (recommendation === "ALL" || job.recommendation === recommendation) && job.score >= minimumScore && statusMatches)
+      && matchesCore(job, { recommendation, minimumScore, status, discovered })
       && (source === "ALL" || job.sources.some((item) => item.source === source))
       && (company === "ALL" || job.company === company)
       && (technology === "ALL" || job.technologies.includes(technology))
       && (seniority === "ALL" || job.seniority.toLowerCase().includes(seniority.toLowerCase()))
       && (location === "ALL" || job.location.toLowerCase().includes(location.toLowerCase()))
       && (employment === "ALL" || [...job.employmentType, ...job.contractType].some((type) => type.toLowerCase().includes(employment.toLowerCase())))
-      && (discovered === "ALL" || (discovered === "TODAY" && age < 86_400_000) || (discovered === "WEEK" && age < 7 * 86_400_000))
       && (salaryFloor === 0 || (job.salaryMax ?? job.salaryMin ?? 0) >= salaryFloor);
-  }).sort((a, b) => b.score - a.score), [jobs, now, card, minimumScore, query, recommendation, source, status, company, technology, seniority, location, employment, discovered, salaryFloor]);
+  }).sort((a, b) => b.score - a.score),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [jobs, now, minimumScore, query, recommendation, source, status, company, technology, seniority, location, employment, discovered, salaryFloor]);
   const sources = [...new Set(jobs.flatMap((job) => job.sources.map((item) => item.source)))];
   const companies = [...new Set(jobs.map((job) => job.company))].sort();
   const technologies = [...new Set(jobs.flatMap((job) => job.technologies))].sort();
@@ -88,27 +105,27 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
     <section className="stats-grid" aria-label="Job summary">
       {statCards.map((item) => {
         const selected = card === item.key;
-        return <button type="button" key={item.key} className={`stat-card${item.highlight ? " stat-highlight" : ""}${selected ? " stat-selected" : ""}`} aria-pressed={selected} onClick={() => setCard(selected ? null : item.key)}>
+        return <button type="button" key={item.key} className={`stat-card${item.highlight ? " stat-highlight" : ""}${selected ? " stat-selected" : ""}`} aria-pressed={selected} onClick={() => selectCard(item.key)}>
           <span>{item.icon}{item.label}{selected && <Check size={13} className="stat-check" aria-hidden="true"/>}</span><strong>{count(item.key)}</strong><small>{item.note}</small>
         </button>;
       })}
     </section>
     <section className="list-section">
       <div className="section-heading"><div><p className="eyebrow">YOUR SHORTLIST</p><h2>Jobs worth your time <span>{filtered.length}</span></h2></div><span className="quiet-note"><BriefcaseBusiness size={15}/> Apply manually, always</span></div>
-      {activeCard && <div className="active-filter" role="status">Showing: <strong>{activeCard.label}</strong><button type="button" onClick={() => setCard(null)}>Clear filter</button></div>}
+      {activeCard && <div className="active-filter" role="status">Showing: <strong>{activeCard.label}</strong><button type="button" onClick={() => { setCard(null); setRecommendation("ALL"); setMinimumScore(50); setStatus("OPEN"); setDiscovered("ALL"); }}>Clear filter</button></div>}
       <div className="filters">
         <label className="search-box"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, company, skills…" aria-label="Search jobs"/></label>
-        <select value={recommendation} onChange={(event) => setRecommendation(event.target.value)} aria-label="Recommendation"><option value="ALL">Any recommendation</option><option>APPLY</option><option>REVIEW</option><option value="MAYBE">PIPELINE</option><option>REJECT</option></select>
+        <select value={recommendation} onChange={(event) => manual(setRecommendation)(event.target.value)} aria-label="Recommendation"><option value="ALL">Any recommendation</option><option>APPLY</option><option>REVIEW</option><option value="MAYBE">PIPELINE</option><option>REJECT</option></select>
         <select value={source} onChange={(event) => setSource(event.target.value)} aria-label="Source"><option value="ALL">Any source</option>{sources.map((value) => <option key={value} value={value}>{value}</option>)}</select>
-        <select value={String(minimumScore)} onChange={(event) => setMinimumScore(Number(event.target.value))} aria-label="Minimum score"><option value="0">Any score</option><option value="50">Pipeline+</option><option value="70">Review+</option><option value="85">Strong matches</option></select>
+        <select value={String(minimumScore)} onChange={(event) => manual(setMinimumScore)(Number(event.target.value))} aria-label="Minimum score"><option value="0">Any score</option><option value="50">Pipeline+</option><option value="70">Review+</option><option value="85">Strong matches</option></select>
         <select value={company} onChange={(event) => setCompany(event.target.value)} aria-label="Company"><option value="ALL">Any company</option>{companies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={technology} onChange={(event) => setTechnology(event.target.value)} aria-label="Technology"><option value="ALL">Any technology</option>{technologies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={seniority} onChange={(event) => setSeniority(event.target.value)} aria-label="Seniority"><option value="ALL">Any seniority</option>{["Senior", "Staff", "Lead", "Mid", "Junior"].map((value) => <option key={value}>{value}</option>)}</select>
         <select value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Location"><option value="ALL">Any location</option>{locations.map((value) => <option key={value} value={value}>{value}</option>)}</select>
         <select value={employment} onChange={(event) => setEmployment(event.target.value)} aria-label="Employment type"><option value="ALL">Any employment</option>{["Contract", "Freelance", "Full-time", "Part-time", "Intern"].map((value) => <option key={value}>{value}</option>)}</select>
         <select value={String(salaryFloor)} onChange={(event) => setSalaryFloor(Number(event.target.value))} aria-label="Minimum salary"><option value="0">Any salary</option><option value="25">25+ listed</option><option value="50">50+ listed</option><option value="75">75+ listed</option></select>
-        <select value={discovered} onChange={(event) => setDiscovered(event.target.value)} aria-label="Date discovered"><option value="ALL">Any date</option><option value="TODAY">Discovered today</option><option value="WEEK">Last 7 days</option></select>
-        <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Status"><option value="OPEN">Open jobs</option><option value="ALL">All statuses</option><option value="SAVED">Saved</option><option value="APPLIED">Applied</option><option value="INTERVIEW">Interview</option><option value="OFFER">Offer</option><option value="REJECTED">Rejected</option></select>
+        <select value={discovered} onChange={(event) => manual(setDiscovered)(event.target.value)} aria-label="Date discovered"><option value="ALL">Any date</option><option value="TODAY">Discovered today</option><option value="WEEK">Last 7 days</option></select>
+        <select value={status} onChange={(event) => manual(setStatus)(event.target.value)} aria-label="Status"><option value="OPEN">Open jobs</option><option value="ALL">All statuses</option><option value="PROGRESS">Applied · interview · offer</option><option value="SAVED">Saved</option><option value="APPLIED">Applied</option><option value="INTERVIEW">Interview</option><option value="OFFER">Offer</option><option value="REJECTED">Rejected</option></select>
       </div>
       <div className="job-list">{filtered.length ? filtered.map((job) => <article className="job-card" key={job.id}>
         <div className={`score-badge ${scoreClass(job.score)}`}><strong>{job.score}</strong><small>{job.recommendation === "APPLY" ? "STRONG" : job.recommendation === "REVIEW" ? "REVIEW" : job.recommendation === "MAYBE" ? "PIPELINE" : "FIT"}</small></div>
