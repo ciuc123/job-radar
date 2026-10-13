@@ -50,7 +50,7 @@ export async function saveProfileAction(formData: FormData) {
     salaryMinimum,
     thresholds, scoreWeights,
   });
-  await rescoreJobs(await getScoringProfile(userId));
+  await rescoreJobs(await getScoringProfile(userId), userId);
   redirect("/settings?updated=1");
 }
 
