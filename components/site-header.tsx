@@ -8,15 +8,17 @@ import { UserButton } from "@clerk/nextjs";
 
 export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isLoggedIn }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode; isLoggedIn?: boolean }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  // The menu remembers the path it was opened on, so navigating closes it without a state-syncing effect.
+  const [openOnPath, setOpenOnPath] = useState<string | null>(null);
+  const open = openOnPath === pathname;
   const navRef = useRef<HTMLElement | null>(null);
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const burgerRef = useRef<HTMLButtonElement | null>(null);
   const lastScrollY = useRef(0);
   const [hidden, setHidden] = useState(false);
 
-  const toggle = () => setOpen((v) => !v);
-  const close = () => setOpen(false);
+  const toggle = () => setOpenOnPath((current) => (current === pathname ? null : pathname));
+  const close = () => setOpenOnPath(null);
 
   useEffect(() => {
     function updateHeight() {
@@ -36,13 +38,9 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
     };
   }, []);
 
-  useEffect(() => { // close mobile menu on navigation
-    setOpen(false);
-  }, [pathname]);
-
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') setOpenOnPath(null);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -55,7 +53,7 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
       const path = (e.composedPath && e.composedPath()) || (e as any).path || [];
       const nav = navRef.current;
       if (nav && !path.includes(nav)) {
-        close();
+        setOpenOnPath(null);
       }
     }
     document.addEventListener('pointerdown', onPointerDown);
@@ -81,11 +79,11 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
         if (delta > 8 && y > 60) {
           setHidden(true);
           // when scrolling down, also close the mobile menu if open
-          if (open) setOpen(false);
+          if (open) setOpenOnPath(null);
         } else if (delta < -8) {
           // scrolling up -> show header but keep menu closed
           setHidden(false);
-          if (open) setOpen(false);
+          if (open) setOpenOnPath(null);
         }
         lastScrollY.current = y;
       });
