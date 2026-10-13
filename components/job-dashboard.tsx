@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, BriefcaseBusiness, CircleCheck, Flame, Search } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, Check, CircleCheck, Flame, Search } from "lucide-react";
 import type { DashboardJob } from "@/lib/repository/jobs";
 import { updateJobAction } from "@/app/actions";
 import SiteHeader from "./site-header";
@@ -40,20 +40,32 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
   const [employment, setEmployment] = useState("ALL");
   const [discovered, setDiscovered] = useState("ALL");
   const [salaryFloor, setSalaryFloor] = useState(0);
+  const [card, setCard] = useState<string | null>(null);
   const today = new Date(now).toDateString();
   const openStatuses = ["NEW", "SAVED", "REVIEW"];
-  const pipeline = jobs.filter((job) => job.scoreBreakdown["role.backend"] > 0 && openStatuses.includes(job.status)).length;
-  const strong = jobs.filter((job) => job.recommendation === "APPLY" && openStatuses.includes(job.status)).length;
-  const review = jobs.filter((job) => job.recommendation === "REVIEW" && openStatuses.includes(job.status)).length;
-  const applied = jobs.filter((job) => ["APPLIED", "INTERVIEW", "OFFER"].includes(job.status)).length;
+  const cardFilters: Record<string, (job: DashboardJob) => boolean> = {
+    today: (job) => new Date(job.discoveredAt).toDateString() === today,
+    pipeline: (job) => job.scoreBreakdown["role.backend"] > 0 && openStatuses.includes(job.status),
+    review: (job) => job.recommendation === "REVIEW" && openStatuses.includes(job.status),
+    strong: (job) => job.recommendation === "APPLY" && openStatuses.includes(job.status),
+    applied: (job) => ["APPLIED", "INTERVIEW", "OFFER"].includes(job.status),
+  };
+  const count = (key: string) => jobs.filter(cardFilters[key]).length;
+  const statCards = [
+    { key: "today", label: "New today", note: "across your sources", icon: null },
+    { key: "pipeline", label: "In your pipeline", note: "backend roles", icon: <BriefcaseBusiness size={14}/> },
+    { key: "review", label: "Worth reviewing", note: "PHP + Laravel backend", icon: null },
+    { key: "strong", label: "Strong matches", note: "remote + salary target", icon: <Flame size={14}/>, highlight: true },
+    { key: "applied", label: "Applied", note: "applied · interview · offer", icon: <CircleCheck size={14}/> },
+  ];
+  const activeCard = statCards.find((item) => item.key === card);
   const filtered = useMemo(() => jobs.filter((job) => {
     const haystack = `${job.title} ${job.company} ${job.description} ${job.technologies.join(" ")}`.toLowerCase();
     const age = new Date(now).getTime() - new Date(job.discoveredAt).getTime();
     const statusMatches = status === "ALL" || (status === "OPEN" ? ["NEW", "SAVED", "REVIEW"].includes(job.status) : job.status === status);
     return (!query || haystack.includes(query.toLowerCase()))
-      && (recommendation === "ALL" || job.recommendation === recommendation)
+      && (card ? cardFilters[card](job) : (recommendation === "ALL" || job.recommendation === recommendation) && job.score >= minimumScore && statusMatches)
       && (source === "ALL" || job.sources.some((item) => item.source === source))
-      && job.score >= minimumScore && statusMatches
       && (company === "ALL" || job.company === company)
       && (technology === "ALL" || job.technologies.includes(technology))
       && (seniority === "ALL" || job.seniority.toLowerCase().includes(seniority.toLowerCase()))
@@ -61,7 +73,7 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
       && (employment === "ALL" || [...job.employmentType, ...job.contractType].some((type) => type.toLowerCase().includes(employment.toLowerCase())))
       && (discovered === "ALL" || (discovered === "TODAY" && age < 86_400_000) || (discovered === "WEEK" && age < 7 * 86_400_000))
       && (salaryFloor === 0 || (job.salaryMax ?? job.salaryMin ?? 0) >= salaryFloor);
-  }).sort((a, b) => b.score - a.score), [jobs, now, minimumScore, query, recommendation, source, status, company, technology, seniority, location, employment, discovered, salaryFloor]);
+  }).sort((a, b) => b.score - a.score), [jobs, now, card, minimumScore, query, recommendation, source, status, company, technology, seniority, location, employment, discovered, salaryFloor]);
   const sources = [...new Set(jobs.flatMap((job) => job.sources.map((item) => item.source)))];
   const companies = [...new Set(jobs.map((job) => job.company))].sort();
   const technologies = [...new Set(jobs.flatMap((job) => job.technologies))].sort();
@@ -74,14 +86,16 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
       <div className="hero-actions"><span className="sync-status"><i className={databaseEnabled ? "sync-ready" : ""}/>{databaseEnabled ? "Database configured" : "Demo data · connect Neon to sync jobs"}</span></div>
     </section>
     <section className="stats-grid" aria-label="Job summary">
-      <article className="stat-card"><span>New today</span><strong>{jobs.filter((job) => new Date(job.discoveredAt).toDateString() === today).length}</strong><small>across your sources</small></article>
-      <article className="stat-card"><span><BriefcaseBusiness size={14}/> In your pipeline</span><strong>{pipeline}</strong><small>backend roles</small></article>
-      <article className="stat-card"><span>Worth reviewing</span><strong>{review}</strong><small>PHP + Laravel backend</small></article>
-      <article className="stat-card stat-highlight"><span><Flame size={14}/> Strong matches</span><strong>{strong}</strong><small>remote + salary target</small></article>
-      <article className="stat-card"><span><CircleCheck size={14}/> Applied</span><strong>{applied}</strong><small>applied · interview · offer</small></article>
+      {statCards.map((item) => {
+        const selected = card === item.key;
+        return <button type="button" key={item.key} className={`stat-card${item.highlight ? " stat-highlight" : ""}${selected ? " stat-selected" : ""}`} aria-pressed={selected} onClick={() => setCard(selected ? null : item.key)}>
+          <span>{item.icon}{item.label}{selected && <Check size={13} className="stat-check" aria-hidden="true"/>}</span><strong>{count(item.key)}</strong><small>{item.note}</small>
+        </button>;
+      })}
     </section>
     <section className="list-section">
       <div className="section-heading"><div><p className="eyebrow">YOUR SHORTLIST</p><h2>Jobs worth your time <span>{filtered.length}</span></h2></div><span className="quiet-note"><BriefcaseBusiness size={15}/> Apply manually, always</span></div>
+      {activeCard && <div className="active-filter" role="status">Showing: <strong>{activeCard.label}</strong><button type="button" onClick={() => setCard(null)}>Clear filter</button></div>}
       <div className="filters">
         <label className="search-box"><Search size={17}/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, company, skills…" aria-label="Search jobs"/></label>
         <select value={recommendation} onChange={(event) => setRecommendation(event.target.value)} aria-label="Recommendation"><option value="ALL">Any recommendation</option><option>APPLY</option><option>REVIEW</option><option value="MAYBE">PIPELINE</option><option>REJECT</option></select>
