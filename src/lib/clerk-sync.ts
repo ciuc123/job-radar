@@ -6,14 +6,21 @@ import { defaultProfile } from "@/lib/profile";
 
 type ClerkUserPayload = { id: string; first_name?: string | null; last_name?: string | null; image_url?: string | null; primary_email_address_id?: string | null; email_addresses?: Array<{ id: string; email_address: string; verification?: { status?: string } | null }> };
 
+// Admin/owner come from APP_ADMIN_EMAILS / APP_OWNER_EMAIL, matched against the verified email stored at sync.
+export function accessForEmail(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const admins = new Set((process.env.APP_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
+  return { role: admins.has(normalized) ? "admin" : "member", ownerPro: normalized === process.env.APP_OWNER_EMAIL?.trim().toLowerCase() };
+}
+
 export async function syncClerkUser(payload: ClerkUserPayload) {
   if (!db) throw new Error("DATABASE_URL is required");
   const emailEntry = payload.email_addresses?.find((item) => item.id === payload.primary_email_address_id);
   const email = emailEntry?.email_address.trim().toLowerCase();
   if (!email || emailEntry?.verification?.status !== "verified") return;
-  const admins = new Set((process.env.APP_ADMIN_EMAILS ?? "").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean));
-  const isAdmin = admins.has(email);
-  const isOwner = email === process.env.APP_OWNER_EMAIL?.trim().toLowerCase();
+  const access = accessForEmail(email);
+  const isAdmin = access.role === "admin";
+  const isOwner = access.ownerPro;
   let row = (await db.select().from(users).where(eq(users.clerkUserId, payload.id)).limit(1))[0];
   if (!row) row = (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
   const name = [payload.first_name, payload.last_name].filter(Boolean).join(" ") || null;
