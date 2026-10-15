@@ -33,3 +33,4 @@ html{scroll-padding-top:var(--site-header-height)}
 }
 
 
+.mobile-account{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;font-weight:600;color:#5d6a63}

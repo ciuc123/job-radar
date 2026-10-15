@@ -23,7 +23,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const showCopilot = Boolean(user) && editable && copilotEnabled() && await hasPaidFeature("ai_analysis");
   const notification = db && user?.id ? (await db.select().from(notificationSettings).where(eq(notificationSettings.userId, user.id)).limit(1))[0] : undefined;
   return <main className="app-shell settings-shell">
-    <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} backHref="/" backLabel={<><ArrowLeft size={16}/> Dashboard</>} />
+    <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} isLoggedIn={true} backHref="/" backLabel={<><ArrowLeft size={16}/> Dashboard</>} />
     <section className="settings-content"><p className="eyebrow">YOUR PROFILE</p><h1>Scoring preferences</h1><p className="muted">Backend roles enter your pipeline. PHP + Laravel backend roles are worth reviewing. Strong matches also need to be fully remote and meet your salary floor.</p>
       {showCopilot && user && <ProfileCopilot userId={user.id} status={ai} />}
       {updated && <div className="success-banner">Preferences saved.</div>}{!editable && <div className="demo-notice">Demo mode: preferences are shown but saving requires Neon.</div>}

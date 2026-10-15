@@ -7,6 +7,8 @@ import { profileHash } from "@/lib/ai/profile-hash";
 import { runPool } from "@/lib/ai/pool";
 import { validateSuggestions } from "@/lib/ai/score-explainer";
 import { defaultProfile } from "@/lib/profile";
+import { buildFitPrompt, clampScore, fitAnalysisSchema } from "@/lib/ai/fit";
+import { realisticJobs } from "@/lib/demo-jobs";
 
 const draft = (overrides: Partial<ProfileDraft> = {}): ProfileDraft => ({
   headline: " Senior Python developer ", experienceYears: 9, experienceSummary: "Nine years of Python.",
@@ -48,7 +50,40 @@ test("normalizeDraft rejects invalid numbers", () => {
 test("cost estimate uses model prices and prices unknown models at the highest rate", () => {
   assert.equal(estimateCostMicroUsd("claude-haiku-5-5", { inputTokens: 1_000_000, outputTokens: 1_000_000 }), 600_000);
   assert.equal(estimateCostMicroUsd("claude-sonnet-5-5", { inputTokens: 4000, outputTokens: 6000 }), 68_000);
-  assert.equal(estimateCostMicroUsd("claude-typo", { inputTokens: 0, outputTokens: 1000 }), estimateCostMicroUsd("claude-sonnet-5-5", { inputTokens: 0, outputTokens: 1000 }));
+  assert.equal(estimateCostMicroUsd("claude-typo", { inputTokens: 0, outputTokens: 1000 }), estimateCostMicroUsd("claude-opus-5-5", { inputTokens: 0, outputTokens: 1000 }));
+});
+
+test("cost estimate prices Opus 5.5 and counts cache reads and writes", () => {
+  const usage = { inputTokens: 1_000, outputTokens: 500, cacheReadTokens: 2_000, cacheWriteTokens: 0 };
+  // Cache reads are billed at 0.1x input (conservative for Opus, whose list rate is lower).
+  assert.equal(estimateCostMicroUsd("claude-opus-5-5", usage), Math.ceil((1_000 + 2_000 * 0.1) * 4 + 500 * 20));
+  assert.equal(estimateCostMicroUsd("claude-haiku-5-5", { inputTokens: 0, outputTokens: 0, cacheWriteTokens: 1_000 }), Math.ceil(1_000 * 1.25 * 0.1));
+});
+
+test("fit prompt keeps the cacheable profile prefix stable and sends only listing fields", () => {
+  const row = { ...realisticJobs[0], id: "internal-id", rawData: { secret: "raw feed payload" }, contentHash: "abc" };
+  const first = buildFitPrompt(defaultProfile, row, 80);
+  const second = buildFitPrompt(defaultProfile, realisticJobs[1], 60);
+  assert.equal(first.system, second.system);
+  assert.equal(first.cachedSystem, second.cachedSystem);
+  assert.match(first.content, /<job_listing>/);
+  assert.doesNotMatch(first.content, /raw feed payload|internal-id|contentHash/);
+  assert.doesNotMatch(first.cachedSystem, /scoreWeights|thresholds/);
+  assert.match(first.content, /"salary": "not stated"/);
+});
+
+test("fit prompt truncates very long descriptions", () => {
+  const prompt = buildFitPrompt(defaultProfile, { ...realisticJobs[0], description: "x".repeat(20_000) }, 70);
+  assert.ok(prompt.content.length < 8_000);
+});
+
+test("fit schema rejects unknown recommendations and clampScore bounds the model's score", () => {
+  const valid = { score: 80, recommendation: "APPLY", estimated_fit: "good", summary: "s", matches: [], gaps: [], concerns: [], talking_points: [] };
+  assert.ok(fitAnalysisSchema.safeParse(valid).success);
+  assert.ok(!fitAnalysisSchema.safeParse({ ...valid, recommendation: "MUST_APPLY" }).success);
+  assert.equal(clampScore(140), 100);
+  assert.equal(clampScore(-3), 0);
+  assert.equal(clampScore(71.6), 72);
 });
 
 test("blendScores is a no-op at weight 0 and without an AI score, and stays in range", () => {

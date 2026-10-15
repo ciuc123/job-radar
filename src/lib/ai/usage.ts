@@ -35,6 +35,6 @@ export async function assertAiBudget(userId: string | null, feature: AiFeature) 
 export async function recordAiUsage(userId: string | null, feature: AiFeature, model: string, usage: TokenUsage) {
   const costMicroUsd = estimateCostMicroUsd(model, usage);
   console.info(JSON.stringify({ event: "ai.usage", userId, feature, model, ...usage, costUsd: costMicroUsd / 1_000_000 }));
-  if (!db) return;
-  await db.insert(aiUsage).values({ userId, feature, model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, costMicroUsd });
+  if (db) await db.insert(aiUsage).values({ userId, feature, model, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, costMicroUsd });
+  return costMicroUsd;
 }

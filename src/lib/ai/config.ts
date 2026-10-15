@@ -1,5 +1,6 @@
 /** Central AI configuration. Prices are list prices (USD per million tokens) cached 2026-10-06; verify before relying on them. */
 export const modelPrices: Record<string, { input: number; output: number }> = {
+  "claude-opus-5-5": { input: 4, output: 20 },
   "claude-sonnet-5-5": { input: 2, output: 10 },
   "claude-haiku-5-5": { input: 0.1, output: 0.5 },
 };
@@ -12,6 +13,10 @@ const intFromEnv = (name: string, fallback: number) => {
 export const aiConfig = {
   /** One-off, per-user work: profile/rubric drafts and score explanations. */
   get profileModel() { return process.env.AI_MODEL_PROFILE || "claude-sonnet-5-5"; },
+  /** On-demand "Analyze fit" on a job page. Run `npm run ai:eval` before changing it. */
+  get analysisModel() { return process.env.AI_MODEL || "claude-opus-5-5"; },
+  /** Max on-demand analyses per user per UTC day. */
+  get dailyAnalysisLimit() { return intFromEnv("AI_DAILY_LIMIT", 20); },
   /** Bulk, per-job work: second-opinion analysis and job fact extraction. */
   get bulkModel() { return process.env.AI_MODEL_BULK || "claude-haiku-5-5"; },
   get monthlyCallCap() { return intFromEnv("AI_MONTHLY_CALL_CAP", 40); },
