@@ -1,5 +1,8 @@
 # AI MVP plan — "Why this job fits you" (on-demand fit analysis)
 
+> **Superseded in part (merged with the AI copilot branch):** `src/lib/ai/claude.ts` no longer exists. Fit analysis now lives in `src/lib/ai/fit.ts` and calls the metered `runStructured` client (`src/lib/ai/client.ts`). `AI_BATCH_LIMIT` was removed: the scheduled pass is gated by `AI_ANALYSIS_ENABLED` and capped by `AI_MAX_JOBS_PER_USER_RUN`, and uses `AI_MODEL_BULK`. `AI_MODEL` and `AI_DAILY_LIMIT` still control on-demand **Analyze fit**. See `docs/AI_PLAN.md`.
+
+
 ## Implementation status (branch `worktree-ai-mvp`)
 
 Rollout steps to tick off: [`AI_ROLLOUT_CHECKLIST.md`](AI_ROLLOUT_CHECKLIST.md).

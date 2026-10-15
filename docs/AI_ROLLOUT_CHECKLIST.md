@@ -1,5 +1,8 @@
 # AI fit analysis — rollout checklist
 
+> **Superseded in part (merged with the AI copilot branch):** `src/lib/ai/claude.ts` no longer exists. Fit analysis now lives in `src/lib/ai/fit.ts` and calls the metered `runStructured` client (`src/lib/ai/client.ts`). `AI_BATCH_LIMIT` was removed: the scheduled pass is gated by `AI_ANALYSIS_ENABLED` and capped by `AI_MAX_JOBS_PER_USER_RUN`, and uses `AI_MODEL_BULK`. `AI_MODEL` and `AI_DAILY_LIMIT` still control on-demand **Analyze fit**. See `docs/AI_PLAN.md`.
+
+
 Companion to [`AI_MVP_PLAN.md`](AI_MVP_PLAN.md). Tick items as you go. Console page paths may move; if a link 404s, use the Console menu.
 
 ## 1. Anthropic Console
