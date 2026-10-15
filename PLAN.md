@@ -55,6 +55,20 @@ Commit each completed feature independently. Keep this checklist updated in the 
 
 **Clerk acceptance:** the existing verified owner account retains owned records and receives admin/Pro access; new users get isolated data and Free access; Pro features are checked server-side and by scheduled workers; webhook events are signature-verified and deduplicated.
 
+## AI helper for registered users (see docs/AI_PLAN.md)
+
+Target: 30–50 active beta developers (hard cap about 100) within a €500 / 6-month test budget; B first, then A, then C only if measurements justify it.
+
+- [x] Plan, options analysis, budget model and user target documented
+- [x] Scaffold (Phase AI-1): Anthropic client with metering and monthly caps, AI profile/rubric draft from CV text, rubric-driven scorer tiers, score explainer with validated weight suggestions, settings and job-page UI, migration 0005
+- [x] Scaffold (Phase AI-2): analyzer moved to Anthropic Haiku with profile-hash freshness, borderline coverage, bounded concurrency; `blendScores` (off by default)
+- [x] Scaffold (Phase AI-3): `job_facts` table and `extractJobFacts` behind a flag, not wired into the pipeline
+- [ ] Apply migration 0005, set `ANTHROPIC_API_KEY`, enable `AI_COPILOT_ENABLED`
+- [ ] Prompt iteration on 10+ real CVs across stacks; admin control for `users.ai_beta`
+- [ ] Eval set from beta users' job ratings; decide whether to wire blending (`AI_BLEND_WEIGHT`) and job facts
+
+**AI acceptance:** a non-PHP developer gets sensible tiers from a reviewed AI draft without editing JSON; legacy profiles score exactly as before; all calls are metered and capped; AI never changes a score unless blending is explicitly enabled.
+
 ## Deployment cost assumptions
 
 Use Vercel Hobby, Neon Free, public-repository GitHub Actions, and optional free-tier email. Disable paid AI by default. Provider quotas and free-plan terms can change; core discovery, scoring, and manual application review must work without paid integrations.

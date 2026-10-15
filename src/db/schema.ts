@@ -1,4 +1,5 @@
-import { boolean, integer, jsonb, pgEnum, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, jsonb, pgEnum, pgTable, primaryKey, real, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import type { Rubric } from "@/lib/types";
 
 export const recommendationEnum = pgEnum("recommendation", ["APPLY", "REVIEW", "MAYBE", "REJECT"]);
 export const applicationStatusEnum = pgEnum("application_status", ["NEW", "SAVED", "REVIEW", "APPLIED", "INTERVIEW", "OFFER", "REJECTED", "WITHDRAWN"]);
@@ -12,6 +13,7 @@ export const users = pgTable("users", {
   clerkUserId: text("clerk_user_id").unique(),
   role: varchar("role", { length: 24 }).notNull().default("member"),
   ownerPro: boolean("owner_pro").notNull().default(false),
+  aiBeta: boolean("ai_beta").notNull().default(false),
   subscriptionPlan: varchar("subscription_plan", { length: 80 }).notNull().default("free"),
   subscriptionStatus: varchar("subscription_status", { length: 32 }).notNull().default("active"),
   subscriptionSyncedAt: timestamp("subscription_synced_at", { withTimezone: true }),
@@ -59,6 +61,7 @@ export const candidateProfiles = pgTable("candidate_profiles", {
   salaryMinimum: integer("salary_minimum"),
   thresholds: jsonb("thresholds").$type<{ apply: number; review: number; maybe: number }>().notNull(),
   scoreWeights: jsonb("score_weights").$type<Record<string, number>>().notNull(),
+  rubric: jsonb("rubric").$type<Rubric | null>(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -170,6 +173,7 @@ export const aiAnalyses = pgTable("ai_analyses", {
   estimatedFit: varchar("estimated_fit", { length: 32 }).notNull(),
   talkingPoints: jsonb("talking_points").$type<string[]>().notNull().default([]),
   model: text("model"),
+  profileHash: text("profile_hash"),
   promptVersion: text("prompt_version"),
   inputTokens: integer("input_tokens"),
   outputTokens: integer("output_tokens"),
@@ -178,6 +182,33 @@ export const aiAnalyses = pgTable("ai_analyses", {
   costUsdMicros: integer("cost_usd_micros"),
   analyzedAt: timestamp("analyzed_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [primaryKey({ columns: [table.userId, table.jobId] })]);
+
+export const aiUsage = pgTable("ai_usage", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  feature: varchar("feature", { length: 48 }).notNull(),
+  model: text("model").notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  costMicroUsd: integer("cost_micro_usd").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("ai_usage_user_created_idx").on(table.userId, table.createdAt)]);
+
+export const aiProfileDrafts = pgTable("ai_profile_drafts", {
+  userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  payload: jsonb("payload").notNull(),
+  rationale: text("rationale").notNull().default(""),
+  model: text("model").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const jobFacts = pgTable("job_facts", {
+  jobId: uuid("job_id").primaryKey().references(() => jobs.id, { onDelete: "cascade" }),
+  facts: jsonb("facts").notNull(),
+  factsVersion: integer("facts_version").notNull().default(1),
+  model: text("model").notNull(),
+  extractedAt: timestamp("extracted_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const notificationSettings = pgTable("notification_settings", {
   userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),

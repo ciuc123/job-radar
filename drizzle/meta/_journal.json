@@ -50,6 +50,13 @@
       "when": 1791933170021,
       "tag": "0006_source_state",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792074614319,
+      "tag": "0007_ai_copilot",
+      "breakpoints": true
     }
   ]
 }

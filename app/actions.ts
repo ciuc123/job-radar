@@ -11,6 +11,11 @@ import { revalidatePath } from "next/cache";
 import { analyzeJobForUser } from "@/lib/ai/analyzer";
 import { lastFetchStartedAt, manualFetchCooldownMs, runFetchPipeline } from "@/lib/sources/pipeline";
 import { sourceRegistry } from "@/lib/sources/registry";
+import { AiBudgetError } from "@/lib/ai/usage";
+import { AiRefusalError } from "@/lib/ai/client";
+import { copilotEnabled } from "@/lib/ai/config";
+import { deleteProfileDraft, draftProfileFromCv, getProfileDraft, saveProfileDraft } from "@/lib/ai/profile-copilot";
+import { explainScore, validateSuggestions, type ScoreExplanation } from "@/lib/ai/score-explainer";
 
 export async function updateJobAction(formData: FormData) {
   const { id: userId } = await requireAppUser();
@@ -76,6 +81,72 @@ export async function saveNotificationSettingsAction(formData: FormData) {
   if ((values.dailyDigestEnabled || values.immediateEnabled) && !(await hasPaidFeature("email_alerts"))) throw new Error("Email alerts require the Pro plan");
   await db.update(notificationSettings).set(values).where(eq(notificationSettings.userId, userId));
   redirect("/settings?notifications=updated");
+}
+
+async function requireAiAccess() {
+  const user = await requireAppUser();
+  if (!copilotEnabled()) throw new Error("AI features are not enabled");
+  if (!(await hasPaidFeature("ai_analysis"))) throw new Error("AI features require the Pro plan or beta access");
+  return user;
+}
+
+const aiErrorCode = (error: unknown) => error instanceof AiBudgetError ? "limit" : error instanceof AiRefusalError ? "refused" : "error";
+
+export async function generateProfileDraftAction(formData: FormData) {
+  const { id: userId } = await requireAiAccess();
+  if (formData.get("consent") !== "on") redirect("/settings?ai=consent");
+  let outcome = "drafted";
+  try {
+    await saveProfileDraft(userId, await draftProfileFromCv(userId, String(formData.get("cv") ?? "")));
+  } catch (error) {
+    console.error(JSON.stringify({ event: "ai.profile_draft_failed", userId, error: error instanceof Error ? error.message : "unknown" }));
+    outcome = error instanceof Error && /^(Paste at least|CV text is too long)/.test(error.message) ? "invalid" : aiErrorCode(error);
+  }
+  redirect(`/settings?ai=${outcome}`);
+}
+
+export async function acceptProfileDraftAction() {
+  const { id: userId } = await requireAiAccess();
+  const draft = await getProfileDraft(userId);
+  if (!draft) redirect("/settings?ai=missing");
+  const current = await getScoringProfile(userId);
+  // Keep the user's own thresholds; the draft only proposes skills, titles, locations, weights and the rubric.
+  const profile = { ...draft.profile, thresholds: current.thresholds };
+  await saveProfile(userId, profile);
+  await rescoreJobs(await getScoringProfile(userId), userId);
+  await deleteProfileDraft(userId);
+  redirect("/settings?ai=accepted");
+}
+
+export async function discardProfileDraftAction() {
+  const { id: userId } = await requireAiAccess();
+  await deleteProfileDraft(userId);
+  redirect("/settings?ai=discarded");
+}
+
+export type ExplainState = { explanation?: ScoreExplanation; error?: string } | null;
+
+export async function explainScoreAction(_previous: ExplainState, formData: FormData): Promise<ExplainState> {
+  const { id: userId } = await requireAiAccess();
+  const jobId = String(formData.get("jobId") ?? "");
+  if (!jobId) return { error: "Missing job" };
+  try {
+    return { explanation: await explainScore(userId, jobId) };
+  } catch (error) {
+    console.error(JSON.stringify({ event: "ai.explain_failed", userId, jobId, error: error instanceof Error ? error.message : "unknown" }));
+    return { error: error instanceof AiBudgetError ? error.message : "The explanation could not be generated. Try again later." };
+  }
+}
+
+export async function applyWeightSuggestionAction(formData: FormData) {
+  const { id: userId } = await requireAiAccess();
+  const jobId = String(formData.get("jobId") ?? "");
+  const profile = await getScoringProfile(userId);
+  const [suggestion] = validateSuggestions([{ weightKey: String(formData.get("weightKey") ?? ""), suggestedWeight: Number(formData.get("suggestedWeight")), reason: "" }], profile);
+  if (!suggestion) throw new Error("Invalid weight suggestion");
+  await saveProfile(userId, { ...profile, scoreWeights: { ...profile.scoreWeights, [suggestion.weightKey]: suggestion.suggested } });
+  await rescoreJobs(await getScoringProfile(userId), userId);
+  redirect(jobId ? `/jobs/${jobId}` : "/");
 }
 
 export type AnalyzeJobState = { error?: string };

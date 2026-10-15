@@ -1,4 +1,5 @@
 import { defaultProfile } from "@/lib/profile";
+import { matchRubric } from "@/lib/scoring/rubric";
 import type { NormalizedJob, Recommendation, ScoredJob, ScoringProfile } from "@/lib/types";
 
 const strongWeightBySkill: Record<string, number> = { PHP: 20, Laravel: 25, Symfony: 10, MySQL: 4, Redis: 5, AWS: 8, Docker: 5, "REST APIs": 10 };
@@ -20,13 +21,17 @@ export function scoreJob(job: NormalizedJob, profile: ScoringProfile = defaultPr
   const description = job.description.toLowerCase();
   const text = `${title} ${description}`;
   const locationText = `${job.location} ${job.countries.join(" ")} ${job.timezoneRequirements.join(" ")}`.toLowerCase();
-  const backendRole = /\b(?:backend|back-end|back end|server[- ]side)\b/i.test(title)
+  const legacyBackendRole = /\b(?:backend|back-end|back end|server[- ]side)\b/i.test(title)
     || /\b(?:api|server[- ]side)\s+(?:developer|engineer|architect)\b/i.test(title)
     || /\b(?:backend|back-end|server.side)\b.{0,45}\b(?:development|engineering|services|systems|apis|platform|architecture)\b|\b(?:build|develop|design|own|maintain)\b.{0,50}\b(?:backend|back-end|server.side|apis?)\b/i.test(description);
   const technologyText = `${title} ${description}`;
   const mentionsPhpAndLaravel = /\bphp\b/i.test(technologyText) && /\blaravel\b/i.test(technologyText);
   const phpLaravelIsLegacyOrMinor = /(?:legacy|minor|optional|nice.to.have|not required|maintenance only).{0,45}\b(?:php|laravel)\b|\b(?:php|laravel)\b.{0,45}(?:legacy|minor|optional|nice.to.have|not required|maintenance only)/i.test(description);
-  const phpLaravelBackend = backendRole && mentionsPhpAndLaravel && !phpLaravelIsLegacyOrMinor;
+  const rubric = profile.rubric ?? null;
+  const rubricMatch = rubric ? matchRubric(job, rubric) : null;
+  // With a rubric the tiers are user-defined; without one the original backend + PHP/Laravel tiers apply unchanged.
+  const backendRole = rubricMatch ? rubricMatch.roleMatch : legacyBackendRole;
+  const phpLaravelBackend = rubricMatch ? rubricMatch.roleMatch && rubricMatch.coreMatch : backendRole && mentionsPhpAndLaravel && !phpLaravelIsLegacyOrMinor;
   const remoteText = `${job.remoteType} ${job.location}`.toLowerCase();
   const remoteIsHybridOrPartial = /hybrid|remote[- ]first|partially remote|on.site|onsite|office.based/.test(remoteText);
   const fullyRemote = !remoteIsHybridOrPartial && (/full[- ]?remote|fully remote|remote anywhere|work from anywhere|worldwide remote/i.test(remoteText)
@@ -52,7 +57,7 @@ export function scoreJob(job: NormalizedJob, profile: ScoringProfile = defaultPr
   for (const skill of profile.secondarySkills) {
     if (has(text, new RegExp(escapeRegex(skill.toLowerCase()), "i"))) add(`skill.${skill}`, weight(skill, secondaryWeight));
   }
-  if (backendRole) add("role.backend", weight("backend", 10));
+  if (backendRole) add(rubric ? "role.family" : "role.backend", weight(rubric ? "roleFamily" : "backend", 10));
   if (profile.preferredTitles.some((preferred) => title.includes(preferred.toLowerCase()))) add("role.preferred_title", weight("preferredTitle", 5));
   if (/\b(staff|principal)\b/i.test(title)) add("seniority.staff", weight("staff", 10));
   else if (/\blead\b/i.test(title)) add("seniority.lead", weight("lead", 8));
@@ -83,13 +88,15 @@ export function scoreJob(job: NormalizedJob, profile: ScoringProfile = defaultPr
   if (hasNegativeSignal("legacy php maintenance") && /legacy maintenance|legacy system|maintain legacy/i.test(description) && /\bphp\b|\blaravel\b/i.test(description)) add("negative.legacy_php", weight("legacyPhpPenalty", -15));
   if (profile.salaryMinimum && job.salaryMax !== undefined && job.salaryMax < profile.salaryMinimum) add("negative.salary_below_minimum", weight("salaryPenalty", -10));
 
-  if (phpLaravelBackend) add("tier.php_laravel_backend", 6);
+  if (phpLaravelBackend) add(rubric ? "tier.core_stack" : "tier.php_laravel_backend", 6);
   if (fullyRemote) add("tier.full_remote", 4);
   if (goodMoney) add("tier.good_money", 4);
 
   const hardNegative = Object.keys(breakdown).some((key) => /^negative\.(?:junior|internship|relocation|legacy_php|excluded|location\.(?:us_only|canada_only|india_only|onsite))/.test(key));
   const reviewTier = phpLaravelBackend && !hardNegative;
-  const strongTier = reviewTier && fullyRemote && goodMoney;
+  const needsRemote = rubric ? rubric.strongRequiresFullRemote : true;
+  const needsSalary = rubric ? rubric.strongRequiresSalary : true;
+  const strongTier = reviewTier && (fullyRemote || !needsRemote) && (goodMoney || !needsSalary);
   const rawPositive = Object.values(breakdown).reduce((sum, value) => sum + Math.max(0, value), 0);
   const rawNegative = Object.values(breakdown).reduce((sum, value) => sum + Math.min(0, value), 0);
   const baseScore = Math.max(0, Math.min(100, (rawPositive + rawNegative) / maxPositive * 100));

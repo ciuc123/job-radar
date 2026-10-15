@@ -1,5 +1,6 @@
 import { loadEnvConfig } from "@next/env";
-import { analyzeJobFit, aiModel } from "@/lib/ai/claude";
+import { aiConfig } from "@/lib/ai/config";
+import { analyzeJobFit } from "@/lib/ai/fit";
 import { PROMPT_VERSION } from "@/lib/ai/prompt";
 import { realisticJobs } from "@/lib/demo-jobs";
 import { defaultProfile } from "@/lib/profile";
@@ -28,7 +29,7 @@ const cases: Array<{ index: number; accept: string[]; why: string }> = [
 async function main() {
   loadEnvConfig(process.cwd());
   if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is required (set it in .env.local).");
-  console.info(`Model ${aiModel()} · prompt ${PROMPT_VERSION} · ${cases.length} cases\n`);
+  console.info(`Model ${aiConfig.analysisModel} · prompt ${PROMPT_VERSION} · ${cases.length} cases\n`);
   let passed = 0;
   let cost = 0;
   let cacheReads = 0;
@@ -36,10 +37,10 @@ async function main() {
     const job = realisticJobs[testCase.index];
     const started = Date.now();
     try {
-      const { analysis, usage } = await analyzeJobFit(defaultProfile, job, scoreJob(job).score);
+      const { analysis, costMicroUsd, usage } = await analyzeJobFit(null, defaultProfile, job, scoreJob(job).score, { model: aiConfig.analysisModel });
       const ok = testCase.accept.includes(analysis.recommendation);
       if (ok) passed++;
-      cost += usage.costUsdMicros ?? 0;
+      cost += costMicroUsd;
       cacheReads += usage.cacheReadTokens;
       console.info(`${ok ? "PASS" : "FAIL"}  #${String(testCase.index).padEnd(2)} ${job.title.slice(0, 34).padEnd(34)} got ${analysis.recommendation.padEnd(6)} (${String(analysis.score).padStart(3)}) want ${testCase.accept.join("|").padEnd(18)} ${Date.now() - started}ms  ${testCase.why}`);
     } catch (error) {

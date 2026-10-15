@@ -25,6 +25,13 @@ export type NormalizedJob = {
   rawData: unknown;
 };
 
+export type Rubric = {
+  roleFamilies: Array<{ name: string; titlePatterns: string[] }>;
+  mustHaveSkills: string[];
+  strongRequiresFullRemote: boolean;
+  strongRequiresSalary: boolean;
+};
+
 export type ScoringProfile = {
   headline: string;
   experienceYears: number;
@@ -39,6 +46,7 @@ export type ScoringProfile = {
   salaryMinimum: number | null;
   thresholds: { apply: number; review: number; maybe: number };
   scoreWeights: Record<string, number>;
+  rubric?: Rubric | null;
 };
 
 export type ScoredJob = NormalizedJob & {

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
 import SiteHeader from "@/components/site-header";
+import ProfileCopilot from "@/components/profile-copilot";
+import { copilotEnabled } from "@/lib/ai/config";
 import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
 import { saveNotificationSettingsAction, saveProfileAction } from "@/app/actions";
 import { defaultProfile } from "@/lib/profile";
@@ -12,16 +14,18 @@ import { eq } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 const join = (items: string[]) => items.join(", ");
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ updated?: string; notifications?: string }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ updated?: string; notifications?: string; ai?: string }> }) {
   const user = await getCurrentAppUser();
   const canUseEmail = await hasPaidFeature("email_alerts");
   const profile = await getScoringProfile(user?.id);
   const editable = hasDatabase();
-  const { updated, notifications } = await searchParams;
+  const { updated, notifications, ai } = await searchParams;
+  const showCopilot = Boolean(user) && editable && copilotEnabled() && await hasPaidFeature("ai_analysis");
   const notification = db && user?.id ? (await db.select().from(notificationSettings).where(eq(notificationSettings.userId, user.id)).limit(1))[0] : undefined;
   return <main className="app-shell settings-shell">
     <SiteHeader userName={user?.name ?? "Developer"} isAdmin={user?.role === "admin"} isLoggedIn={true} backHref="/" backLabel={<><ArrowLeft size={16}/> Dashboard</>} />
     <section className="settings-content"><p className="eyebrow">YOUR PROFILE</p><h1>Scoring preferences</h1><p className="muted">Backend roles enter your pipeline. PHP + Laravel backend roles are worth reviewing. Strong matches also need to be fully remote and meet your salary floor.</p>
+      {showCopilot && user && <ProfileCopilot userId={user.id} status={ai} />}
       {updated && <div className="success-banner">Preferences saved.</div>}{!editable && <div className="demo-notice">Demo mode: preferences are shown but saving requires Neon.</div>}
       <form action={saveProfileAction} className="settings-form">
         <fieldset disabled={!editable}><legend>Experience</legend>

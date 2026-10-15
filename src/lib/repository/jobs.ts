@@ -58,7 +58,7 @@ export async function getScoringProfile(userId?: string): Promise<ScoringProfile
     strongSkills: profile.strongSkills, secondarySkills: profile.secondarySkills,
     preferredLocations: profile.preferredLocations, excludedLocations: profile.excludedLocations,
     preferredEmploymentTypes: profile.preferredEmploymentTypes, negativeSignals: profile.negativeSignals, salaryMinimum: profile.salaryMinimum,
-    thresholds: profile.thresholds, scoreWeights: profile.scoreWeights,
+    thresholds: profile.thresholds, scoreWeights: profile.scoreWeights, rubric: profile.rubric ?? null,
   };
 }
 
