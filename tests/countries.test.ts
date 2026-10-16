@@ -35,3 +35,23 @@ test("does not flag unrestricted listings", () => {
   assert.deepEqual(detectHiringRestriction("Not only will you code, contact us today."), []);
   assert.deepEqual(detectHiringRestriction("We are a remote-first company."), []);
 });
+
+import { acceptsCountry, jobAvailability } from "@/lib/jobs/availability";
+
+test("availability: open, regional and locked roles", () => {
+  assert.equal(jobAvailability({ countries: [] }).kind, "open");
+  assert.equal(jobAvailability({ countries: ["Worldwide"] }).kind, "open");
+  assert.equal(jobAvailability({ countries: ["Romania", "Europe"] }).kind, "regional");
+  const feed = jobAvailability({ countries: ["Germany", "France"] });
+  assert.equal(feed.kind, "locked");
+  assert.equal(acceptsCountry(feed, "Germany"), true);
+  assert.equal(acceptsCountry(feed, "Romania"), false);
+});
+
+test("availability: a listing-level restriction overrides an open feed", () => {
+  const locked = jobAvailability({ countries: [], hiringRestriction: ["United States"] });
+  assert.equal(locked.kind, "locked");
+  assert.equal(acceptsCountry(locked, "Romania"), false);
+  assert.equal(acceptsCountry(locked, "united states"), true);
+  assert.equal(acceptsCountry(jobAvailability({ countries: [] }), "Romania"), true);
+});

@@ -56,6 +56,7 @@ export const candidateProfiles = pgTable("candidate_profiles", {
   secondarySkills: jsonb("secondary_skills").$type<string[]>().notNull(),
   preferredLocations: jsonb("preferred_locations").$type<string[]>().notNull(),
   excludedLocations: jsonb("excluded_locations").$type<string[]>().notNull(),
+  residenceCountry: text("residence_country").notNull().default(""),
   preferredEmploymentTypes: jsonb("preferred_employment_types").$type<string[]>().notNull(),
   negativeSignals: jsonb("negative_signals").$type<string[]>().notNull().default([]),
   salaryMinimum: integer("salary_minimum"),

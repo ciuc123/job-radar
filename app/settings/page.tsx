@@ -5,6 +5,7 @@ import ProfileCopilot from "@/components/profile-copilot";
 import { copilotEnabled } from "@/lib/ai/config";
 import { getCurrentAppUser, hasPaidFeature } from "@/lib/app-user";
 import { saveNotificationSettingsAction, saveProfileAction } from "@/app/actions";
+import { COUNTRY_NAMES } from "@/lib/jobs/countries";
 import { defaultProfile } from "@/lib/profile";
 import { getScoringProfile, hasDatabase } from "@/lib/repository/jobs";
 import { db } from "@/db";
@@ -39,6 +40,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label>Secondary skills <small>Comma-separated</small><textarea name="secondarySkills" defaultValue={join(profile.secondarySkills)}/></label>
         </fieldset>
         <fieldset disabled={!editable}><legend>Location and work type</legend>
+          <label>Country of residence <small>Used to show only remote roles with no country lock or that accept this country. Leave blank to see all.</small><input name="residenceCountry" list="residence-countries" defaultValue={profile.residenceCountry ?? ""} placeholder="e.g. Romania"/><datalist id="residence-countries">{COUNTRY_NAMES.map((name) => <option key={name} value={name}/>)}</datalist></label>
           <label>Preferred locations <small>Comma-separated</small><textarea name="preferredLocations" defaultValue={join(profile.preferredLocations)}/></label>
           <label>Excluded locations/signals <small>Comma-separated</small><textarea name="excludedLocations" defaultValue={join(profile.excludedLocations)}/></label>
           <label>Preferred employment types <small>Comma-separated</small><textarea name="preferredEmploymentTypes" defaultValue={join(profile.preferredEmploymentTypes)}/></label>

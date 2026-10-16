@@ -56,7 +56,7 @@ export async function getScoringProfile(userId?: string): Promise<ScoringProfile
     headline: profile.headline, experienceYears: profile.experienceYears, experienceSummary: profile.experienceSummary,
     preferredTitles: profile.preferredTitles,
     strongSkills: profile.strongSkills, secondarySkills: profile.secondarySkills,
-    preferredLocations: profile.preferredLocations, excludedLocations: profile.excludedLocations,
+    preferredLocations: profile.preferredLocations, excludedLocations: profile.excludedLocations, residenceCountry: profile.residenceCountry,
     preferredEmploymentTypes: profile.preferredEmploymentTypes, negativeSignals: profile.negativeSignals, salaryMinimum: profile.salaryMinimum,
     thresholds: profile.thresholds, scoreWeights: profile.scoreWeights, rubric: profile.rubric ?? null,
   };

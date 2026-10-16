@@ -38,7 +38,11 @@ html{scroll-padding-top:var(--site-header-height)}
 
 .mobile-account{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;font-weight:600;color:#5d6a63}
 .mobile-signin{display:none}
-.restriction-badge{display:inline-block;margin:2px 0 0;padding:2px 8px;border-radius:999px;background:#fff4e0;color:#8a5a00;font-size:12px;font-weight:700}
-.filter-check{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.availability{display:inline-block;margin:2px 0 0;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.availability-line{margin:4px 0 0}
+.availability-open{background:#eaf5ee;color:#1f6b3b}
+.availability-ok{background:#eaf5ee;color:#1f6b3b}
+.availability-regional{background:#eef2fb;color:#2f4a8a}
+.availability-locked{background:#fff4e0;color:#8a5a00}
 .mobile-auth{display:flex;gap:10px;padding-top:10px;border-top:1px solid var(--line)}
 .detail-main>.aside-card{margin:16px 0}

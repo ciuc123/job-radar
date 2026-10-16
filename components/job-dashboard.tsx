@@ -6,6 +6,8 @@ import { ArrowUpRight, BriefcaseBusiness, Check, CircleCheck, Flame, Search } fr
 import type { DashboardJob } from "@/lib/repository/jobs";
 import { updateJobAction } from "@/app/actions";
 import { isRegion } from "@/lib/jobs/countries";
+import { acceptsCountry, jobAvailability } from "@/lib/jobs/availability";
+import AvailabilityBadge from "./availability-badge";
 import SiteHeader from "./site-header";
 
 const scoreClass = (score: number) => score >= 85 ? "score-hot" : score >= 70 ? "score-good" : score >= 50 ? "score-mid" : "score-low";
@@ -31,15 +33,15 @@ const salaryLabel = (job: DashboardJob) => {
   return `${range}${job.salaryPeriod === "hourly" ? "/h" : job.salaryPeriod === "annual" ? "/yr" : job.salaryPeriod === "monthly" ? "/mo" : ""}`;
 };
 
-const JobCard = memo(function JobCard({ job, databaseEnabled }: { job: DashboardJob; databaseEnabled: boolean }) {
+const JobCard = memo(function JobCard({ job, databaseEnabled, residenceCountry }: { job: DashboardJob; databaseEnabled: boolean; residenceCountry: string }) {
   return <article className="job-card">
         <div className={`score-badge ${scoreClass(job.score)}`}><strong>{job.score}</strong><small>{job.recommendation === "APPLY" ? "STRONG" : job.recommendation === "REVIEW" ? "REVIEW" : job.recommendation === "MAYBE" ? "PIPELINE" : "FIT"}</small></div>
-        <div className="job-main"><div className="job-title-line"><Link href={`/jobs/${job.id}`} prefetch={false} className="job-title">{job.title}</Link><span className={`recommendation recommendation-${job.recommendation.toLowerCase()}`}>{recommendationLabel(job.recommendation)}</span></div><p className="company-line">{job.company}<span>·</span>{job.location || job.remoteType}<span>·</span>{salaryLabel(job)}</p>{job.hiringRestriction?.length ? <p className="restriction-badge" title="The original listing says it only hires from these countries">Only hires from {job.hiringRestriction.join(", ")}</p> : null}<div className="tech-tags">{job.technologies.slice(0, 7).map((technology) => <span key={technology}>{technology}</span>)}</div><div className="job-meta"><span>{job.sources.map((item) => item.source).join(" · ")} · Found {foundFormat.format(new Date(job.discoveredAt))}</span><div className="quick-actions"><a href={job.sources[0]?.url ?? job.url} target="_blank" rel="noreferrer">Apply <ArrowUpRight size={12}/></a>{databaseEnabled && <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><input type="hidden" name="status" value="REJECTED"/><button type="submit">Reject</button></form>}</div></div></div>
+        <div className="job-main"><div className="job-title-line"><Link href={`/jobs/${job.id}`} prefetch={false} className="job-title">{job.title}</Link><span className={`recommendation recommendation-${job.recommendation.toLowerCase()}`}>{recommendationLabel(job.recommendation)}</span></div><p className="company-line">{job.company}<span>·</span>{job.location || job.remoteType}<span>·</span>{salaryLabel(job)}</p><p className="availability-line"><AvailabilityBadge job={job} residenceCountry={residenceCountry}/></p><div className="tech-tags">{job.technologies.slice(0, 7).map((technology) => <span key={technology}>{technology}</span>)}</div><div className="job-meta"><span>{job.sources.map((item) => item.source).join(" · ")} · Found {foundFormat.format(new Date(job.discoveredAt))}</span><div className="quick-actions"><a href={job.sources[0]?.url ?? job.url} target="_blank" rel="noreferrer">Apply <ArrowUpRight size={12}/></a>{databaseEnabled && <form action={updateJobAction}><input type="hidden" name="jobId" value={job.id}/><input type="hidden" name="status" value="REJECTED"/><button type="submit">Reject</button></form>}</div></div></div>
         <Link href={`/jobs/${job.id}`} prefetch={false} className="card-arrow" aria-label={`View ${job.title}`}><ArrowUpRight size={19}/></Link>
       </article>;
 });
 
-export function JobDashboard({ jobs, locations: databaseLocations, userName, isAdmin, isLoggedIn, databaseEnabled, now }: { jobs: DashboardJob[]; locations: string[]; userName: string; isAdmin: boolean; isLoggedIn: boolean; databaseEnabled: boolean; now: string }) {
+export function JobDashboard({ jobs, locations: databaseLocations, residenceCountry, userName, isAdmin, isLoggedIn, databaseEnabled, now }: { jobs: DashboardJob[]; locations: string[]; residenceCountry: string; userName: string; isAdmin: boolean; isLoggedIn: boolean; databaseEnabled: boolean; now: string }) {
   const [query, setQuery] = useState("");
   const [recommendation, setRecommendation] = useState("ALL");
   const [source, setSource] = useState("ALL");
@@ -48,8 +50,8 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
   const [company, setCompany] = useState("ALL");
   const [technology, setTechnology] = useState("ALL");
   const [seniority, setSeniority] = useState("ALL");
-  const [location, setLocation] = useState("ALL");
-  const [hideRestricted, setHideRestricted] = useState(false);
+  // With a residence country saved, start on "available to me": roles with no country lock or that accept it.
+  const [location, setLocation] = useState(residenceCountry ? "ELIGIBLE" : "ALL");
   const [employment, setEmployment] = useState("ALL");
   const [discovered, setDiscovered] = useState("ALL");
   const [salaryFloor, setSalaryFloor] = useState(0);
@@ -98,21 +100,18 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
       && (company === "ALL" || job.company === company)
       && (technology === "ALL" || job.technologies.includes(technology))
       && (seniority === "ALL" || job.seniority.toLowerCase().includes(seniority.toLowerCase()))
-      && (location === "ALL" || (job.countries.length ? job.countries.includes(location) : job.location.toLowerCase().includes(location.toLowerCase())))
-      // A listing that only hires from other countries is not available in the selected one.
-      && (location === "ALL" || isRegion(location) || !job.hiringRestriction?.length || job.hiringRestriction.includes(location))
-      && (!hideRestricted || !job.hiringRestriction?.length)
+      && (location === "ALL" || acceptsCountry(jobAvailability(job), location === "ELIGIBLE" ? residenceCountry : location))
       && (employment === "ALL" || [...job.employmentType, ...job.contractType].some((type) => type.toLowerCase().includes(employment.toLowerCase())))
       && (salaryFloor === 0 || (job.salaryMax ?? job.salaryMin ?? 0) >= salaryFloor);
   }).sort((a, b) => b.score - a.score),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [jobs, now, minimumScore, query, recommendation, source, status, company, technology, seniority, location, hideRestricted, employment, discovered, salaryFloor]);
+  [jobs, now, minimumScore, query, recommendation, source, status, company, technology, seniority, location, employment, discovered, salaryFloor]);
   const { sources, companies, technologies, locations } = useMemo(() => ({
     sources: [...new Set(jobs.flatMap((job) => job.sources.map((item) => item.source)))],
     companies: [...new Set(jobs.map((job) => job.company))].sort(),
     technologies: [...new Set(jobs.flatMap((job) => job.technologies))].sort(),
-    locations: [...new Set((databaseLocations.length ? databaseLocations : jobs.flatMap((job) => job.countries)).map(locationLabel).filter(Boolean))].sort(),
-  }), [jobs, databaseLocations]);
+    locations: [...new Set((databaseLocations.length ? databaseLocations : jobs.flatMap((job) => job.countries)).map(locationLabel).filter((value) => value && !isRegion(value)).concat(residenceCountry ? [residenceCountry] : []))].sort(),
+  }), [jobs, databaseLocations, residenceCountry]);
   // Render a page at a time; the page size resets whenever the filtered result changes.
   const [shown, setShown] = useState<{ list: DashboardJob[]; n: number }>({ list: filtered, n: PAGE_SIZE });
   const visibleCount = shown.list === filtered ? shown.n : PAGE_SIZE;
@@ -143,14 +142,13 @@ export function JobDashboard({ jobs, locations: databaseLocations, userName, isA
         <select value={company} onChange={(event) => setCompany(event.target.value)} aria-label="Company"><option value="ALL">Any company</option>{companies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={technology} onChange={(event) => setTechnology(event.target.value)} aria-label="Technology"><option value="ALL">Any technology</option>{technologies.map((value) => <option key={value}>{value}</option>)}</select>
         <select value={seniority} onChange={(event) => setSeniority(event.target.value)} aria-label="Seniority"><option value="ALL">Any seniority</option>{["Senior", "Staff", "Lead", "Mid", "Junior"].map((value) => <option key={value}>{value}</option>)}</select>
-        <select value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Location"><option value="ALL">Any country</option>{locations.map((value) => <option key={value} value={value}>{value}</option>)}</select>
-        <label className="filter-check"><input type="checkbox" checked={hideRestricted} onChange={(event) => setHideRestricted(event.target.checked)}/> Hide country-restricted</label>
+        <select value={location} onChange={(event) => setLocation(event.target.value)} aria-label="Location"><option value="ALL">Any country (show all)</option>{residenceCountry && <option value="ELIGIBLE">Available to me · {residenceCountry}</option>}{locations.map((value) => <option key={value} value={value}>{value}</option>)}</select>
         <select value={employment} onChange={(event) => setEmployment(event.target.value)} aria-label="Employment type"><option value="ALL">Any employment</option>{["Contract", "Freelance", "Full-time", "Part-time", "Intern"].map((value) => <option key={value}>{value}</option>)}</select>
         <select value={String(salaryFloor)} onChange={(event) => setSalaryFloor(Number(event.target.value))} aria-label="Minimum salary"><option value="0">Any salary</option><option value="25">25+ listed</option><option value="50">50+ listed</option><option value="75">75+ listed</option></select>
         <select value={discovered} onChange={(event) => manual(setDiscovered)(event.target.value)} aria-label="Date discovered"><option value="ALL">Any date</option><option value="TODAY">Discovered today</option><option value="WEEK">Last 7 days</option></select>
         <select value={status} onChange={(event) => manual(setStatus)(event.target.value)} aria-label="Status"><option value="OPEN">Open jobs</option><option value="ALL">All statuses</option><option value="PROGRESS">Applied · interview · offer</option><option value="SAVED">Saved</option><option value="APPLIED">Applied</option><option value="INTERVIEW">Interview</option><option value="OFFER">Offer</option><option value="REJECTED">Rejected</option></select>
       </div>
-      <div className="job-list">{filtered.length ? visible.map((job) => <JobCard key={job.id} job={job} databaseEnabled={databaseEnabled}/>) : <div className="empty-state"><h3>No jobs match those filters.</h3><p>Try lowering the score cutoff or changing your search.</p></div>}</div>
+      <div className="job-list">{filtered.length ? visible.map((job) => <JobCard key={job.id} job={job} databaseEnabled={databaseEnabled} residenceCountry={residenceCountry}/>) : <div className="empty-state"><h3>No jobs match those filters.</h3><p>Try lowering the score cutoff or changing your search.</p></div>}</div>
       {filtered.length > visibleCount && <button type="button" className="show-more" onClick={() => setShown({ list: filtered, n: visibleCount + PAGE_SIZE })}>Show more ({filtered.length - visibleCount} remaining)</button>}
       <p className="attribution">Job data is sourced from the listed boards. {sources.includes("himalayas") && <>Himalayas listings are attributed to <a href="https://himalayas.app" target="_blank" rel="noreferrer">Himalayas</a>. </>}Please verify each role on its original listing before applying.</p>
     </section>

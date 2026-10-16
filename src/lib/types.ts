@@ -42,6 +42,7 @@ export type ScoringProfile = {
   secondarySkills: string[];
   preferredLocations: string[];
   excludedLocations: string[];
+  residenceCountry?: string;
   preferredEmploymentTypes: string[];
   negativeSignals: string[];
   salaryMinimum: number | null;

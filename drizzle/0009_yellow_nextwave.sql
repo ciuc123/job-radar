@@ -1,0 +1,1 @@
+ALTER TABLE "candidate_profiles" ADD COLUMN "residence_country" text DEFAULT '' NOT NULL;

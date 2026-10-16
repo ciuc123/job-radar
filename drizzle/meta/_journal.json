@@ -64,6 +64,13 @@
       "when": 1792158332835,
       "tag": "0008_lumpy_diamondback",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792159862447,
+      "tag": "0009_yellow_nextwave",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,7 @@
     "jobs:fetch": "node --import tsx scripts/fetch-jobs.ts",
     "jobs:rescore": "node --import tsx scripts/rescore-jobs.ts",
     "jobs:backfill": "node --import tsx scripts/backfill-job-fields.ts",
+    "profile:residence": "node --import tsx scripts/set-residence.ts",
     "jobs:facts": "node --import tsx scripts/extract-job-facts.ts",
     "notifications:send": "node --import tsx scripts/send-digests.ts",
     "ai:eval": "node --import tsx scripts/eval-ai.ts"

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { networkPipelines, notificationSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getScoringProfile, rescoreJobs, saveProfile, updateJobApplication } from "@/lib/repository/jobs";
+import { canonicalCountry } from "@/lib/jobs/countries";
 import type { JobStatus } from "@/lib/types";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -53,6 +54,7 @@ export async function saveProfileAction(formData: FormData) {
     preferredTitles: list("preferredTitles"),
     strongSkills: list("strongSkills"), secondarySkills: list("secondarySkills"),
     preferredLocations: list("preferredLocations"), excludedLocations: list("excludedLocations"),
+    residenceCountry: canonicalCountry(String(formData.get("residenceCountry") ?? "")) ?? "",
     preferredEmploymentTypes: list("preferredEmploymentTypes"), negativeSignals: list("negativeSignals"),
     salaryMinimum,
     thresholds, scoreWeights,
