@@ -26,6 +26,9 @@ html{scroll-padding-top:var(--site-header-height)}
   .mobile-dropdown.hamburger-only{display:flex;flex-direction:column}
   .topbar{position:fixed;left:0;right:0;top:var(--top-banner-height,0);background:#fff;z-index:60;padding:10px 18px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
   .app-shell{padding-top:var(--site-header-height)}
+  /* the fixed header would cover the in-flow banner; sign in / create account live in the header and menu instead */
+  .auth-banner{display:none}
+  .mobile-signin.hamburger-only{display:inline-flex;font-weight:700;color:var(--green)}
 }
 
 @media(min-width:631px){
@@ -34,3 +37,8 @@ html{scroll-padding-top:var(--site-header-height)}
 
 
 .mobile-account{display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);font-size:14px;font-weight:600;color:#5d6a63}
+.mobile-signin{display:none}
+.restriction-badge{display:inline-block;margin:2px 0 0;padding:2px 8px;border-radius:999px;background:#fff4e0;color:#8a5a00;font-size:12px;font-weight:700}
+.filter-check{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+.mobile-auth{display:flex;gap:10px;padding-top:10px;border-top:1px solid var(--line)}
+.detail-main>.aside-card{margin:16px 0}

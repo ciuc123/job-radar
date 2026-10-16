@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import type { NormalizedJob } from "@/lib/types";
+import { normalizeCountries } from "@/lib/jobs/countries";
+import { detectHiringRestriction } from "@/lib/jobs/restrictions";
 
 export function cleanHtml(input: string): string {
   return input
@@ -75,7 +77,8 @@ export function normalizeJob(job: NormalizedJob): NormalizedJob {
     company: job.company.trim().replace(/\s+/g, " "),
     description,
     location: job.location.trim(),
-    countries: cleanStrings(job.countries),
+    countries: normalizeCountries(cleanStrings(job.countries), job.location),
+    hiringRestriction: [...new Set([...cleanStrings(job.hiringRestriction), ...detectHiringRestriction(`${job.title}. ${description}`)])].sort(),
     timezoneRequirements: cleanStrings(job.timezoneRequirements),
     technologies: [...new Set([...cleanStrings(job.technologies), ...extractTechnologies(`${job.title} ${description}`)])],
   };

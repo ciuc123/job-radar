@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Settings2 } from "lucide-react";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton, useUser } from "@clerk/nextjs";
 
 export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isLoggedIn: serverLoggedIn }: { userName?: string; isAdmin?: boolean; backHref?: string; backLabel?: React.ReactNode; isLoggedIn?: boolean }) {
   const pathname = usePathname();
@@ -113,6 +113,7 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
       <Link href="/" className="brand"><span className="brand-mark">JR</span><span>job radar<small>PERSONAL EDITION</small></span></Link>
       {backHref ? <Link href={backHref} className="back-link">{backLabel}</Link> : null}
       <nav>
+        {!isLoggedIn && <SignInButton mode="modal"><button className="mobile-signin hamburger-only">Sign in</button></SignInButton>}
         <button ref={burgerRef} aria-label="Toggle menu" aria-expanded={open} className="hamburger-only" onClick={toggle}>
           {open ? (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 6L18 18M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -151,7 +152,10 @@ export default function SiteHeader({ userName, isAdmin, backHref, backLabel, isL
             {isLoggedIn ? <div className="mobile-account">
               <UserButton />
               <span>{displayName}</span>
-            </div> : <Link href="/signin" onClick={close}>Sign in</Link>}
+            </div> : <div className="mobile-auth">
+              <SignInButton mode="modal"><button className="button button-primary" onClick={close}>Sign in</button></SignInButton>
+              <SignUpButton mode="modal"><button className="button button-secondary" onClick={close}>Create account</button></SignUpButton>
+            </div>}
           </div>
         </div>
       </nav>

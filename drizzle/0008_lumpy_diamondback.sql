@@ -1,0 +1,1 @@
+ALTER TABLE "jobs" ADD COLUMN "hiring_restriction" jsonb DEFAULT '[]'::jsonb NOT NULL;

@@ -4,7 +4,7 @@ import { applications, candidateProfiles, jobs, sourceListings, userJobScores, u
 import { defaultProfile } from "@/lib/profile";
 import { realisticJobs } from "@/lib/demo-jobs";
 import { deduplicateJobs } from "@/lib/deduplication/deduplicator";
-import { contentHash } from "@/lib/jobs/normalize";
+import { contentHash, normalizeJob } from "@/lib/jobs/normalize";
 import { scoreJob } from "@/lib/scoring/scorer";
 import type { JobStatus, NormalizedJob, ScoredJob, ScoringProfile } from "@/lib/types";
 
@@ -19,7 +19,7 @@ export type DashboardJob = ScoredJob & {
 export const hasDatabase = () => Boolean(db);
 
 export const sampleJobs: DashboardJob[] = deduplicateJobs(realisticJobs).map((group, index) => {
-  const scored = scoreJob(group.canonical);
+  const scored = scoreJob(normalizeJob(group.canonical));
   return {
     ...scored,
     id: `demo-${index + 1}`,
@@ -70,7 +70,7 @@ type StoredJob = Omit<typeof jobs.$inferSelect, "rawData">;
 const SCORE_BATCH = 250;
 
 function normalizedStoredJob(job: StoredJob): NormalizedJob {
-  return { source: "stored", url: job.canonicalUrl, title: job.title, company: job.company, description: job.description, location: job.location, countries: job.countries, timezoneRequirements: job.timezoneRequirements, employmentType: job.employmentType, contractType: job.contractType, salaryMin: job.salaryMin ?? undefined, salaryMax: job.salaryMax ?? undefined, salaryCurrency: job.salaryCurrency ?? undefined, salaryPeriod: job.salaryPeriod ?? undefined, technologies: job.technologies, seniority: job.seniority, postedAt: job.postedAt?.toISOString(), expiresAt: job.expiresAt?.toISOString(), remoteType: job.remoteType, rawData: {} };
+  return { source: "stored", url: job.canonicalUrl, title: job.title, company: job.company, description: job.description, location: job.location, countries: job.countries, hiringRestriction: job.hiringRestriction, timezoneRequirements: job.timezoneRequirements, employmentType: job.employmentType, contractType: job.contractType, salaryMin: job.salaryMin ?? undefined, salaryMax: job.salaryMax ?? undefined, salaryCurrency: job.salaryCurrency ?? undefined, salaryPeriod: job.salaryPeriod ?? undefined, technologies: job.technologies, seniority: job.seniority, postedAt: job.postedAt?.toISOString(), expiresAt: job.expiresAt?.toISOString(), remoteType: job.remoteType, rawData: {} };
 }
 
 type ScoreRow = typeof userJobScores.$inferInsert;
@@ -137,7 +137,7 @@ export async function getDashboardJobs(userId?: string, { jobId, full = false }:
     return {
       source: sources[0]?.source ?? "unknown",
       sourceJobId: undefined, url: job.canonicalUrl, title: job.title, company: job.company,
-      description, location: job.location, countries: job.countries,
+      description, location: job.location, countries: job.countries, hiringRestriction: job.hiringRestriction,
       timezoneRequirements: job.timezoneRequirements, employmentType: job.employmentType,
       contractType: job.contractType, salaryMin: job.salaryMin ?? undefined, salaryMax: job.salaryMax ?? undefined,
       salaryCurrency: job.salaryCurrency ?? undefined, salaryPeriod: job.salaryPeriod ?? undefined,
@@ -150,13 +150,11 @@ export async function getDashboardJobs(userId?: string, { jobId, full = false }:
   });
 }
 
+// One entry per country (jobs.countries is a jsonb array), so the filter never offers "Germany, France, Spain".
 export async function getJobLocations(): Promise<string[]> {
   if (!db) return [];
-  const rows = await db.selectDistinct({ location: jobs.location })
-    .from(jobs)
-    .where(sql`btrim(${jobs.location}) <> ''`)
-    .orderBy(jobs.location);
-  return rows.map(({ location }) => location.trim()).filter(Boolean);
+  const rows = await db.execute<{ country: string }>(sql`select distinct btrim(c) as country from ${jobs}, jsonb_array_elements_text(${jobs.countries}) as c where btrim(c) <> '' order by country`);
+  return rows.rows.map(({ country }) => country);
 }
 
 async function ensureUserScores(userId: string) {
@@ -219,7 +217,7 @@ export async function persistJobs(source: string, normalizedJobs: NormalizedJob[
       const scored = scoreJob(raw, profile);
       const created = await db.insert(jobs).values({
         canonicalUrl: raw.url, title: raw.title, company: raw.company, description: raw.description, location: raw.location,
-        countries: raw.countries, timezoneRequirements: raw.timezoneRequirements, employmentType: raw.employmentType,
+        countries: raw.countries, hiringRestriction: raw.hiringRestriction ?? [], timezoneRequirements: raw.timezoneRequirements, employmentType: raw.employmentType,
         contractType: raw.contractType, salaryMin: raw.salaryMin, salaryMax: raw.salaryMax, salaryCurrency: raw.salaryCurrency,
         salaryPeriod: raw.salaryPeriod, technologies: raw.technologies, seniority: raw.seniority,
         postedAt: raw.postedAt ? new Date(raw.postedAt) : null, expiresAt: raw.expiresAt ? new Date(raw.expiresAt) : null,

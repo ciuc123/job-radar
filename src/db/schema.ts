@@ -79,6 +79,7 @@ export const jobs = pgTable("jobs", {
   description: text("description").notNull(),
   location: text("location").notNull().default(""),
   countries: jsonb("countries").$type<string[]>().notNull().default([]),
+  hiringRestriction: jsonb("hiring_restriction").$type<string[]>().notNull().default([]),
   timezoneRequirements: jsonb("timezone_requirements").$type<string[]>().notNull().default([]),
   employmentType: jsonb("employment_type").$type<string[]>().notNull().default([]),
   contractType: jsonb("contract_type").$type<string[]>().notNull().default([]),

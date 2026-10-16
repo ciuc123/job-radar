@@ -10,6 +10,7 @@ export type NormalizedJob = {
   description: string;
   location: string;
   countries: string[];
+  hiringRestriction?: string[];
   timezoneRequirements: string[];
   employmentType: string[];
   contractType: string[];
